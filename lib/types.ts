@@ -35,6 +35,13 @@ export type Location = {
   actualLaunch?: string;
   manicure: boolean;
   services: ServiceLine[];
+  targetZone: string;
+  hairMasters: number;
+  nailMasters: number;
+  officialEmployment: boolean;
+  employerInsurancePct: number;
+  vacationReservePct: number;
+  sickReservePct: number;
 };
 
 export type Employee = {
@@ -82,6 +89,30 @@ export type OpeningTask = {
   week: number;
 };
 
+export type ActualMonth = {
+  id: string;
+  locationId: string;
+  month: string;
+  revenue: number;
+  procedures: number;
+  payroll: number;
+  employerCosts: number;
+  materials: number;
+  acquiring: number;
+  rent: number;
+  marketing: number;
+  other: number;
+  tax: number;
+  note: string;
+};
+
+export type PrivateNote = {
+  id: string;
+  title: string;
+  body: string;
+  updatedAt: string;
+};
+
 export type AppState = {
   capitalMin: number;
   capitalMax: number;
@@ -90,4 +121,6 @@ export type AppState = {
   funds: FundTx[];
   scenarios: Scenario[];
   openingTasks: OpeningTask[];
+  actuals: ActualMonth[];
+  privateNotes: PrivateNote[];
 };
