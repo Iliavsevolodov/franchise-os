@@ -10,7 +10,7 @@ export const seed: AppState = {
       installmentBalance:340000, installmentMonthly:34000, rent:40000, accounting:2500,
       internet:1000, cleaning:5000, software:2000, marketing:10000, depreciationFund:15000,
       cultureFund:15000, materialsPct:8, acquiringPct:2, staffPct:49.5, taxPct:15,
-      plannedLaunch:"2027-09", manicure:true
+      plannedLaunch:"2027-09", manicure:true, services:[{id:"cut",name:"Стрижки",price:500,sharePct:59,masterPct:50},{id:"color",name:"Окрашивания",price:1800,sharePct:13,masterPct:40},{id:"nails",name:"Ногти",price:1250,sharePct:28,masterPct:50}]
     },
     {
       id:"gryazovets", name:"STRIXY Грязовец", city:"Грязовец", format:"STANDARD · 3 кресла",
@@ -18,7 +18,7 @@ export const seed: AppState = {
       installmentBalance:340000, installmentMonthly:34000, rent:40000, accounting:2500,
       internet:1000, cleaning:5000, software:2000, marketing:10000, depreciationFund:15000,
       cultureFund:15000, materialsPct:8, acquiringPct:2, staffPct:49.5, taxPct:15,
-      plannedLaunch:"2028-01", manicure:false
+      plannedLaunch:"2028-01", manicure:false, services:[{id:"cut",name:"Стрижки",price:500,sharePct:90,masterPct:50},{id:"color",name:"Окрашивания",price:1800,sharePct:10,masterPct:40}]
     },
     {
       id:"sheksna", name:"STRIXY Шексна", city:"Шексна", format:"STANDARD · 3 кресла",
@@ -26,7 +26,7 @@ export const seed: AppState = {
       installmentBalance:340000, installmentMonthly:34000, rent:40000, accounting:2500,
       internet:1000, cleaning:5000, software:2000, marketing:10000, depreciationFund:15000,
       cultureFund:15000, materialsPct:8, acquiringPct:2, staffPct:49.5, taxPct:15,
-      plannedLaunch:"2028-06", manicure:false
+      plannedLaunch:"2028-06", manicure:false, services:[{id:"cut",name:"Стрижки",price:500,sharePct:90,masterPct:50},{id:"color",name:"Окрашивания",price:1800,sharePct:10,masterPct:40}]
     }
   ],
   employees: [
