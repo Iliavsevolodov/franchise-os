@@ -213,19 +213,50 @@ body{min-height:100vh}
 .location-editor{grid-template-columns:1.5fr .8fr}
 .pnl-sticky{align-self:start;position:sticky;top:84px}
 
-.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}
+.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 .form-grid.compact{grid-template-columns:repeat(3,1fr);margin-top:10px}
-.field{display:grid;gap:5px}
-.field>span{font-size:9px;color:var(--muted);font-weight:700}
-.field-control,.field>input,.field>select,.fund-form input,.service-name input,table input,table select{
-  background:#fbfcfd;border:1px solid var(--line);border-radius:9px;color:var(--text)
+.field{
+  display:grid;gap:6px;padding:10px 11px 9px;background:linear-gradient(180deg,#fff,#fbfcfd);
+  border:1px solid var(--line);border-radius:12px;transition:.16s ease;min-width:0
 }
-.field-control{display:flex;align-items:center;overflow:hidden}
-.field-control input{border:0;background:transparent;width:100%;padding:9px 10px;outline:none;color:var(--text)}
-.field-control b{padding-right:9px;color:var(--muted);font-size:10px}
-.field>input,.field>select{padding:9px 10px;width:100%}
-.field-control:focus-within,.field>input:focus,.field>select:focus,.service-name input:focus,table input:focus,table select:focus{border-color:#b9c0cc;box-shadow:0 0 0 3px rgba(87,101,128,.06)}
+.field:hover{border-color:#d6dae3;box-shadow:0 6px 18px rgba(21,27,39,.035)}
+.field:focus-within{border-color:#ffb9be;box-shadow:0 0 0 4px rgba(255,77,87,.07)}
+.field-emphasis{background:linear-gradient(180deg,#fff7f8,#fff);border-color:#ffd8db}
+.field-emphasis:focus-within{border-color:#ff939a}
+.field-label{font-size:9px;color:#7b8291;font-weight:800;letter-spacing:.02em;text-transform:uppercase}
+.field-control{
+  min-height:38px;display:flex;align-items:center;overflow:hidden;background:#f7f8fa;border:1px solid #edf0f4;
+  border-radius:9px;transition:.16s ease
+}
+.field:focus-within .field-control{background:#fff;border-color:#f3c3c6}
+.field-control input{
+  border:0;background:transparent;width:100%;min-width:0;padding:9px 10px;outline:none;color:#171b24;
+  font-size:14px;font-weight:760;font-variant-numeric:tabular-nums;letter-spacing:.018em
+}
+.field-prefix,.field-suffix{
+  flex:none;color:#697180;font-size:10px;font-weight:850;background:#fff;border:1px solid #eceff3;border-radius:7px;
+  padding:5px 7px;margin:5px
+}
+.field-prefix{margin-right:0}
+.field-suffix{margin-left:0}
+.field-helper{font-size:8px;color:#a0a6b2;line-height:1.35}
+.field>input,.field>select{
+  padding:10px 11px;width:100%;background:#f7f8fa;border:1px solid #edf0f4;border-radius:9px;color:var(--text);
+  font-size:12px;font-weight:650
+}
+.field>input:focus,.field>select:focus{background:#fff;border-color:#f3c3c6}
 .full-field{margin:12px 0}
+.compact-number{
+  min-width:104px;display:flex;align-items:center;background:#f8f9fb;border:1px solid var(--line);border-radius:9px;overflow:hidden
+}
+.compact-number:focus-within{background:#fff;border-color:#ffb9be;box-shadow:0 0 0 3px rgba(255,77,87,.06)}
+.compact-number input{
+  width:100%;min-width:72px;border:0!important;background:transparent!important;padding:8px 8px!important;outline:none;
+  color:#171b24;font-weight:750;font-variant-numeric:tabular-nums;letter-spacing:.015em
+}
+.compact-number span{
+  margin-right:5px;padding:4px 6px;background:#fff;border:1px solid #edf0f4;border-radius:6px;color:#737b89;font-size:9px;font-weight:800
+}
 
 .subsection{border-top:1px solid var(--line);padding-top:18px;margin-top:20px}
 .subsection h3{margin:0;font-size:13px}
@@ -403,3 +434,27 @@ table select{padding:7px 8px}
   .service-row{grid-template-columns:1fr}
   .location-overview{grid-template-columns:1fr 1fr}
 }
+
+/* Numeric readability */
+.summary-value,.summary-side b,.kpi-copy strong,.location-metric b,.location-overview b,
+.pnl-list b,.mini-grid b,.scenario-summary>strong,.scenario-cities b,.team-card b,
+.dossier-revenue b,.data-list b,td,th{
+  font-variant-numeric:tabular-nums;
+}
+.kpi-copy strong,.summary-value,.location-overview b{letter-spacing:-.025em}
+
+/* Branded form hierarchy */
+.subsection{
+  background:#fcfcfd;border:1px solid #eef0f4;border-radius:14px;padding:16px;margin-top:18px
+}
+.subsection>.row:first-child{margin-bottom:10px}
+.subsection h3{font-size:12px;letter-spacing:-.01em}
+.service-row{
+  border-left:3px solid #ff5963;
+  background:linear-gradient(90deg,#fff8f8 0,#fff 22%)
+}
+.service-name input{
+  background:#fff;border:1px solid #e9ecf1;border-radius:9px;padding:9px 10px;font-weight:780
+}
+.fund-form>.field{background:#fff}
+.actual-preview .big b{font-variant-numeric:tabular-nums}
