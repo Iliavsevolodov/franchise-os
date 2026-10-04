@@ -33,6 +33,17 @@ function cloneSeed(): AppState {
   return JSON.parse(JSON.stringify(seed));
 }
 
+function downloadCsv(filename:string, rows:(string|number)[][]) {
+  const csv = rows.map(row=>row.map(cell=>{
+    const value=String(cell ?? "");
+    return /[;"\n]/.test(value) ? `"${value.replace(/"/g,'""')}"` : value;
+  }).join(";")).join("\n");
+  const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
 function Kpi({label,value,sub,icon:Icon,tone="red"}:{label:string;value:string;sub?:string;icon:any;tone?:string}) {
   return <div className="kpi">
     <div className={`kpi-icon ${tone}`}><Icon size={18}/></div>
@@ -160,6 +171,21 @@ function Locations({state,setState,selected,setSelected}:{state:AppState;setStat
           <label>Остаток рассрочки<NumberInput value={l.installmentBalance} onChange={v=>update({installmentBalance:v})}/></label>
           <label>Платёж рассрочки<NumberInput value={l.installmentMonthly} onChange={v=>update({installmentMonthly:v})}/></label>
         </div>
+        <div className="service-box">
+          <div className="row between"><h3>Структура услуг</h3><span className="muted tiny">доля от выручки</span></div>
+          <div className="service-lines">
+            {l.services.map((s,i)=>{
+              const serviceRevenue=l.revenue*s.sharePct/100;
+              const procedures=s.price?serviceRevenue/s.price:0;
+              return <div className="service-line" key={s.id}>
+                <div><b>{s.name}</b><small>{money(s.price)} · мастеру {s.masterPct}%</small></div>
+                <div><b>{money(serviceRevenue)}</b><small>≈ {Math.round(procedures)} процедур/мес.</small></div>
+                <NumberInput value={s.sharePct} onChange={v=>update({services:l.services.map((x,j)=>j===i?{...x,sharePct:v}:x)})} suffix="%"/>
+              </div>
+            })}
+          </div>
+        </div>
+
       </section>
       <section className="panel sticky-summary">
         <SectionTitle title="P&L точки" sub="Зрелый месяц"/>
@@ -183,7 +209,10 @@ function Finance({state}:{state:AppState}) {
   const rows=state.locations.map(l=>({l,p:locationPnl(l)}));
   const totalRevenue=rows.reduce((s,x)=>s+x.l.revenue,0), totalNet=rows.reduce((s,x)=>s+x.p.net,0);
   return <div className="page">
-    <SectionTitle title="Финансы" sub="P&L сети и каждой точки"/>
+    <SectionTitle title="Финансы" sub="P&L сети и каждой точки" action={<button className="primary" onClick={()=>downloadCsv("franchise-os-pnl.csv",[
+      ["Точка","Выручка","ФОТ","Расходники","Эквайринг","Фикс и фонды","Налог","Чистая прибыль","Маржа %"],
+      ...rows.map(({l,p})=>[l.city,l.revenue,p.staff,p.materials,p.acquiring,p.fixed,p.tax,p.net,p.margin.toFixed(1)])
+    ])}><Save size={16}/> CSV</button>}/>
     <div className="kpi-grid three">
       <Kpi label="Выручка сети" value={money(totalRevenue)} icon={BarChart3}/>
       <Kpi label="Чистая прибыль" value={money(totalNet)} icon={Wallet} tone="green"/>
