@@ -19,3 +19,9 @@
 .auth-card h1{margin:4px 0 0}.auth-card p{margin:0 0 8px;color:var(--muted)}
 .auth-card label{display:grid;gap:7px;color:var(--muted);font-size:12px}.auth-card input{background:#0f1014;border:1px solid var(--line);color:#fff;border-radius:9px;padding:11px}
 .auth-card a{color:#aaa;font-size:12px;text-align:center}.auth-message{font-size:12px;color:#ffd275;background:rgba(244,183,64,.08);border:1px solid rgba(244,183,64,.2);padding:10px;border-radius:9px}
+
+.service-line.expanded{grid-template-columns:1.35fr 1fr 1fr 1fr}
+.service-line.expanded label{display:grid;gap:4px;color:var(--muted);font-size:10px}
+.share-warning{color:#ff7e87;font-size:11px}
+@media(max-width:900px){.service-line.expanded{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.service-line.expanded{grid-template-columns:1fr}}
