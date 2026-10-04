@@ -84,11 +84,48 @@ function SectionTitle({title,sub,action}:{title:string;sub?:string;action?:React
   </div>;
 }
 
-function Field({label,value,onChange,suffix,step=1}:{label:string;value:number;onChange:(n:number)=>void;suffix?:string;step?:number}) {
-  return <label className="field">
-    <span>{label}</span>
-    <div className="field-control"><input type="number" step={step} value={value} onChange={e=>onChange(Number(e.target.value||0))}/>{suffix&&<b>{suffix}</b>}</div>
+function formatEditableNumber(value:number) {
+  if(!Number.isFinite(value)) return "0";
+  return new Intl.NumberFormat("ru-RU",{maximumFractionDigits:2,useGrouping:true})
+    .format(value)
+    .replace(/\u00A0/g," ")
+    .replace(/\u202F/g," ");
+}
+
+function parseEditableNumber(raw:string) {
+  const normalized=raw.replace(/[\s\u00A0\u202F]/g,"").replace(",",".").replace(/[^0-9.\-]/g,"");
+  const value=Number(normalized);
+  return Number.isFinite(value)?value:0;
+}
+
+function Field({label,value,onChange,suffix,prefix,helper,emphasis=false}:{label:string;value:number;onChange:(n:number)=>void;suffix?:string;prefix?:string;helper?:string;emphasis?:boolean}) {
+  return <label className={`field ${emphasis?"field-emphasis":""}`}>
+    <span className="field-label">{label}</span>
+    <div className="field-control">
+      {prefix&&<b className="field-prefix">{prefix}</b>}
+      <input
+        type="text"
+        inputMode="decimal"
+        value={formatEditableNumber(value)}
+        onChange={e=>onChange(parseEditableNumber(e.target.value))}
+        aria-label={label}
+      />
+      {suffix&&<b className="field-suffix">{suffix}</b>}
+    </div>
+    {helper&&<small className="field-helper">{helper}</small>}
   </label>;
+}
+
+function CompactNumberInput({value,onChange,suffix}:{value:number;onChange:(n:number)=>void;suffix?:string}) {
+  return <div className="compact-number">
+    <input
+      type="text"
+      inputMode="decimal"
+      value={formatEditableNumber(value)}
+      onChange={e=>onChange(parseEditableNumber(e.target.value))}
+    />
+    {suffix&&<span>{suffix}</span>}
+  </div>;
 }
 
 function Kpi({label,value,sub,icon:Icon,tone="red"}:{label:string;value:string;sub?:string;icon:any;tone?:"red"|"green"|"blue"|"amber"}) {
@@ -254,16 +291,16 @@ function Locations({state,setState,selected,setSelected}:{state:AppState;setStat
       <section className="panel">
         <SectionTitle title="Экономика точки" sub="Все поля можно менять — расчёт обновляется сразу"/>
         <div className="form-grid">
-          <Field label="Плановая выручка" value={l.revenue} onChange={v=>update({revenue:v})}/>
-          <Field label="Стоимость запуска" value={l.launchCost} onChange={v=>update({launchCost:v})}/>
-          <Field label="Аренда + КУ" value={l.rent} onChange={v=>update({rent:v})}/>
-          <Field label="Реклама / месяц" value={l.marketing} onChange={v=>update({marketing:v})}/>
+          <Field label="Плановая выручка" value={l.revenue} onChange={v=>update({revenue:v})} suffix="₽" helper="Целевой оборот точки за месяц" emphasis/>
+          <Field label="Стоимость запуска" value={l.launchCost} onChange={v=>update({launchCost:v})} suffix="₽" helper="Деньги до открытия точки"/>
+          <Field label="Аренда + КУ" value={l.rent} onChange={v=>update({rent:v})} suffix="₽"/>
+          <Field label="Реклама / месяц" value={l.marketing} onChange={v=>update({marketing:v})} suffix="₽"/>
           <Field label="Расходники" value={l.materialsPct} onChange={v=>update({materialsPct:v})} suffix="%"/>
           <Field label="Эквайринг" value={l.acquiringPct} onChange={v=>update({acquiringPct:v})} suffix="%"/>
           <Field label="Налоговый резерв" value={l.taxPct} onChange={v=>update({taxPct:v})} suffix="%"/>
-          <Field label="Амортизационный фонд" value={l.depreciationFund} onChange={v=>update({depreciationFund:v})}/>
-          <Field label="Фонд команды" value={l.cultureFund} onChange={v=>update({cultureFund:v})}/>
-          <Field label="Рассрочка / месяц" value={l.installmentMonthly} onChange={v=>update({installmentMonthly:v})}/>
+          <Field label="Амортизационный фонд" value={l.depreciationFund} onChange={v=>update({depreciationFund:v})} suffix="₽"/>
+          <Field label="Фонд команды" value={l.cultureFund} onChange={v=>update({cultureFund:v})} suffix="₽"/>
+          <Field label="Рассрочка / месяц" value={l.installmentMonthly} onChange={v=>update({installmentMonthly:v})} suffix="₽"/>
         </div>
 
         <div className="subsection">
@@ -291,7 +328,7 @@ function Locations({state,setState,selected,setSelected}:{state:AppState;setStat
               const patch=(x:Partial<typeof s>)=>update({services:l.services.map((v,j)=>j===i?{...v,...x}:v)});
               return <div className="service-row" key={s.id}>
                 <div className="service-name"><input value={s.name} onChange={e=>patch({name:e.target.value})}/><span>{money(revenue)} · ≈ {Math.round(procedures)} процедур</span></div>
-                <Field label="Цена" value={s.price} onChange={v=>patch({price:v})}/>
+                <Field label="Цена" value={s.price} onChange={v=>patch({price:v})} suffix="₽"/>
                 <Field label="Доля" value={s.sharePct} onChange={v=>patch({sharePct:v})} suffix="%"/>
                 <Field label="Мастеру" value={s.masterPct} onChange={v=>patch({masterPct:v})} suffix="%"/>
               </div>;
@@ -380,7 +417,7 @@ function Actuals({state,setState}:{state:AppState;setState:React.Dispatch<React.
         <div className="form-grid">
           <label className="field"><span>Точка</span><select value={form.locationId} onChange={e=>setForm({...form,locationId:e.target.value})}>{state.locations.map(l=><option key={l.id} value={l.id}>{l.city}</option>)}</select></label>
           <label className="field"><span>Месяц</span><input type="month" value={form.month} onChange={e=>setForm({...form,month:e.target.value})}/></label>
-          <Field label="Выручка" value={form.revenue} onChange={v=>setForm({...form,revenue:v})}/>
+          <Field label="Выручка" value={form.revenue} onChange={v=>setForm({...form,revenue:v})} suffix="₽" emphasis/>
           <Field label="Процедур" value={form.procedures} onChange={v=>setForm({...form,procedures:v})}/>
           <Field label="ФОТ" value={form.payroll} onChange={v=>setForm({...form,payroll:v})}/>
           <Field label="Работодатель сверху" value={form.employerCosts} onChange={v=>setForm({...form,employerCosts:v})}/>
@@ -421,7 +458,7 @@ function Scenarios({state,setState}:{state:AppState;setState:React.Dispatch<Reac
     <div className="scenario-tabs">{state.scenarios.map(x=><button key={x.id} onClick={()=>setSelected(x.id)} className={selected===x.id?"active":""}>{x.name}</button>)}</div>
     <div className="layout-2">
       <section className="panel"><SectionTitle title="Допущения" sub="Сценарий не меняет базовые точки"/>
-        <div className="form-grid">{state.locations.map(l=><Field key={l.id} label={`Выручка · ${l.city}`} value={sc.revenues[l.id]??0} onChange={v=>update({revenues:{...sc.revenues,[l.id]:v}})}/>)}
+        <div className="form-grid">{state.locations.map(l=><Field key={l.id} label={`Выручка · ${l.city}`} value={sc.revenues[l.id]??0} onChange={v=>update({revenues:{...sc.revenues,[l.id]:v}})} suffix="₽"/>)}
           <Field label="ФОТ мастеров" value={sc.staffPct} onChange={v=>update({staffPct:v})} suffix="%"/>
           <Field label="Расходники" value={sc.materialsPct} onChange={v=>update({materialsPct:v})} suffix="%"/>
           <Field label="Эквайринг" value={sc.acquiringPct} onChange={v=>update({acquiringPct:v})} suffix="%"/>
@@ -448,8 +485,8 @@ function Staff({state,setState}:{state:AppState;setState:React.Dispatch<React.Se
     <tbody>{state.employees.map(e=>{const c=employeeCost(e);return <tr key={e.id}>
       <td><input className="table-input" value={e.name} onChange={x=>upd(e.id,{name:x.target.value})}/><small className="cell-sub">{e.role}</small></td>
       <td><select value={e.locationId} onChange={x=>upd(e.id,{locationId:x.target.value})}>{state.locations.map(l=><option value={l.id} key={l.id}>{l.city}</option>)}</select></td>
-      <td><input className="table-number" type="number" value={e.revenue} onChange={x=>upd(e.id,{revenue:Number(x.target.value||0)})}/></td>
-      <td><input className="table-number small" type="number" value={e.percent} onChange={x=>upd(e.id,{percent:Number(x.target.value||0)})}/></td>
+      <td><CompactNumberInput value={e.revenue} onChange={v=>upd(e.id,{revenue:v})} suffix="₽"/></td>
+      <td><CompactNumberInput value={e.percent} onChange={v=>upd(e.id,{percent:v})} suffix="%"/></td>
       <td>{money(c.salary)}</td><td>{money(c.insurance+c.vacation+c.sick)}</td><td><b>{money(c.total)}</b></td><td>{e.shifts?num(e.procedures/e.shifts):"—"}</td>
     </tr>})}</tbody></table></div></section>
     <div className="alert blue"><ShieldCheck size={18}/><span>Начисленная зарплата, сумма «на руки» и полная стоимость сотрудника — разные показатели. Платформа не смешивает их.</span></div>
@@ -472,7 +509,7 @@ function Funds({state,setState}:{state:AppState;setState:React.Dispatch<React.Se
     </div>
     <div className="layout-2">
       <section className="panel"><SectionTitle title="Новая операция" sub="Положительная сумма — пополнение, отрицательная — трата"/>
-        <div className="fund-form"><label className="field"><span>Фонд</span><select value={fund} onChange={e=>setFund(e.target.value as FundTx["fund"])}><option value="culture">Корпоративный</option><option value="depreciation">Амортизационный</option><option value="reserve">Резерв</option></select></label><Field label="Сумма" value={amount} onChange={setAmount}/><label className="field"><span>Комментарий</span><input value={note} onChange={e=>setNote(e.target.value)} placeholder="Подарки, оборудование, резерв…"/></label><button className="btn primary" onClick={add}><Plus size={16}/> Добавить</button></div>
+        <div className="fund-form"><label className="field"><span>Фонд</span><select value={fund} onChange={e=>setFund(e.target.value as FundTx["fund"])}><option value="culture">Корпоративный</option><option value="depreciation">Амортизационный</option><option value="reserve">Резерв</option></select></label><Field label="Сумма" value={amount} onChange={setAmount} suffix="₽" helper="Можно вводить со знаком минус для расхода"/><label className="field"><span>Комментарий</span><input value={note} onChange={e=>setNote(e.target.value)} placeholder="Подарки, оборудование, резерв…"/></label><button className="btn primary" onClick={add}><Plus size={16}/> Добавить</button></div>
       </section>
       <section className="panel"><SectionTitle title="Последние операции"/><div className="transactions">{state.funds.length?state.funds.slice(0,10).map(x=><div key={x.id}><span>{x.date}<small>{x.note||x.category}</small></span><b className={x.amount>=0?"positive":"negative"}>{money(x.amount)}</b></div>):<div className="empty-state small-empty"><PiggyBank size={24}/><b>Операций пока нет</b><span>Фонды начнут накапливаться после фактического запуска.</span></div>}</div></section>
     </div>
@@ -524,7 +561,7 @@ function SettingsPage({state,setState,reset}:{state:AppState;setState:React.Disp
   return <div className="page">
     <div className="page-head"><div><span className="eyebrow">НАСТРОЙКИ</span><h1>Параметры владельца</h1><p>Глобальные значения и управление локальными данными.</p></div></div>
     <div className="layout-2">
-      <section className="panel"><SectionTitle title="Капитал"/><div className="form-grid"><Field label="Минимум" value={state.capitalMin} onChange={v=>setState(s=>({...s,capitalMin:v}))}/><Field label="Максимум" value={state.capitalMax} onChange={v=>setState(s=>({...s,capitalMax:v}))}/></div></section>
+      <section className="panel"><SectionTitle title="Капитал"/><div className="form-grid"><Field label="Минимум" value={state.capitalMin} onChange={v=>setState(s=>({...s,capitalMin:v}))} suffix="₽" emphasis/><Field label="Максимум" value={state.capitalMax} onChange={v=>setState(s=>({...s,capitalMax:v}))} suffix="₽" emphasis/></div></section>
       <section className="panel"><SectionTitle title="Хранение данных"/><div className="alert blue"><Save size={18}/><span>Сейчас рабочие изменения сохраняются в localStorage этого браузера.</span></div><button className="btn danger mt-sm" onClick={reset}><RotateCcw size={16}/> Вернуть стартовую модель</button></section>
     </div>
   </div>;
