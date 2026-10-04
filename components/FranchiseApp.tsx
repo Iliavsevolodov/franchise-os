@@ -98,14 +98,18 @@ function parseEditableNumber(raw:string) {
   return Number.isFinite(value)?value:0;
 }
 
-function Field({label,value,onChange,suffix,prefix,helper,emphasis=false}:{label:string;value:number;onChange:(n:number)=>void;suffix?:string;prefix?:string;helper?:string;emphasis?:boolean}) {
+function Field({label,value,onChange,suffix,prefix,helper,emphasis=false,allowNegative=false}:{label:string;value:number;onChange:(n:number)=>void;suffix?:string;prefix?:string;helper?:string;emphasis?:boolean;allowNegative?:boolean}) {
+  const keyboardMode: React.HTMLAttributes<HTMLInputElement>["inputMode"] =
+    suffix==="%" || allowNegative ? "decimal" : "numeric";
   return <label className={`field ${emphasis?"field-emphasis":""}`}>
     <span className="field-label">{label}</span>
     <div className="field-control">
       {prefix&&<b className="field-prefix">{prefix}</b>}
       <input
         type="text"
-        inputMode="decimal"
+        inputMode={keyboardMode}
+        pattern={keyboardMode==="numeric" ? "[0-9 ]*" : undefined}
+        autoComplete="off"
         value={formatEditableNumber(value)}
         onChange={e=>onChange(parseEditableNumber(e.target.value))}
         aria-label={label}
@@ -117,10 +121,13 @@ function Field({label,value,onChange,suffix,prefix,helper,emphasis=false}:{label
 }
 
 function CompactNumberInput({value,onChange,suffix}:{value:number;onChange:(n:number)=>void;suffix?:string}) {
+  const keyboardMode: React.HTMLAttributes<HTMLInputElement>["inputMode"] = suffix==="%" ? "decimal" : "numeric";
   return <div className="compact-number">
     <input
       type="text"
-      inputMode="decimal"
+      inputMode={keyboardMode}
+      pattern={keyboardMode==="numeric" ? "[0-9 ]*" : undefined}
+      autoComplete="off"
       value={formatEditableNumber(value)}
       onChange={e=>onChange(parseEditableNumber(e.target.value))}
     />
@@ -509,7 +516,7 @@ function Funds({state,setState}:{state:AppState;setState:React.Dispatch<React.Se
     </div>
     <div className="layout-2">
       <section className="panel"><SectionTitle title="Новая операция" sub="Положительная сумма — пополнение, отрицательная — трата"/>
-        <div className="fund-form"><label className="field"><span>Фонд</span><select value={fund} onChange={e=>setFund(e.target.value as FundTx["fund"])}><option value="culture">Корпоративный</option><option value="depreciation">Амортизационный</option><option value="reserve">Резерв</option></select></label><Field label="Сумма" value={amount} onChange={setAmount} suffix="₽" helper="Можно вводить со знаком минус для расхода"/><label className="field"><span>Комментарий</span><input value={note} onChange={e=>setNote(e.target.value)} placeholder="Подарки, оборудование, резерв…"/></label><button className="btn primary" onClick={add}><Plus size={16}/> Добавить</button></div>
+        <div className="fund-form"><label className="field"><span>Фонд</span><select value={fund} onChange={e=>setFund(e.target.value as FundTx["fund"])}><option value="culture">Корпоративный</option><option value="depreciation">Амортизационный</option><option value="reserve">Резерв</option></select></label><Field label="Сумма" value={amount} onChange={setAmount} suffix="₽" helper="Можно вводить со знаком минус для расхода" allowNegative/><label className="field"><span>Комментарий</span><input value={note} onChange={e=>setNote(e.target.value)} placeholder="Подарки, оборудование, резерв…"/></label><button className="btn primary" onClick={add}><Plus size={16}/> Добавить</button></div>
       </section>
       <section className="panel"><SectionTitle title="Последние операции"/><div className="transactions">{state.funds.length?state.funds.slice(0,10).map(x=><div key={x.id}><span>{x.date}<small>{x.note||x.category}</small></span><b className={x.amount>=0?"positive":"negative"}>{money(x.amount)}</b></div>):<div className="empty-state small-empty"><PiggyBank size={24}/><b>Операций пока нет</b><span>Фонды начнут накапливаться после фактического запуска.</span></div>}</div></section>
     </div>
