@@ -1,5 +1,13 @@
 export type LocationStatus = "planned" | "opening" | "active";
 
+export type ServiceLine = {
+  id: string;
+  name: string;
+  price: number;
+  sharePct: number;
+  masterPct: number;
+};
+
 export type Location = {
   id: string;
   name: string;
@@ -26,6 +34,7 @@ export type Location = {
   plannedLaunch: string;
   actualLaunch?: string;
   manicure: boolean;
+  services: ServiceLine[];
 };
 
 export type Employee = {
