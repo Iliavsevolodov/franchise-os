@@ -6,7 +6,7 @@ import {
   Building2, Calculator, CalendarRange, CheckCircle2, ChevronRight, Circle,
   CircleDollarSign, Coins, CreditCard, FileText, Gauge, Landmark, LayoutDashboard,
   Menu, PiggyBank, Plus, ReceiptText, RotateCcw, Save, Settings, ShieldCheck,
-  Sparkles, Target, TrendingUp, Users, Wallet, X
+  Sparkles, Target, TrendingUp, Users, Wallet, X, LockKeyhole, Delete
 } from "lucide-react";
 import {
   Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer,
@@ -141,6 +141,72 @@ function Kpi({label,value,sub,icon:Icon,tone="red"}:{label:string;value:string;s
     <div className="kpi-copy"><span>{label}</span><strong>{value}</strong>{sub&&<small>{sub}</small>}</div>
   </div>;
 }
+
+function PasscodeGate({onUnlock}:{onUnlock:()=>void}) {
+  const [pin,setPin]=useState("");
+  const [error,setError]=useState(false);
+  const [checking,setChecking]=useState(false);
+  const pinHash="940a01e99ef8b507cbef66b5d642c154172c06acc4193389edd911af96c9e745";
+
+  const digest=async(value:string)=>{
+    const bytes=new TextEncoder().encode(value);
+    const hash=await crypto.subtle.digest("SHA-256",bytes);
+    return Array.from(new Uint8Array(hash)).map(x=>x.toString(16).padStart(2,"0")).join("");
+  };
+
+  const verify=async(value:string)=>{
+    if(value.length!==4 || checking)return;
+    setChecking(true);
+    const hash=await digest(value);
+    if(hash===pinHash){
+      sessionStorage.setItem("franchise-os-unlocked","1");
+      setError(false);
+      onUnlock();
+    }else{
+      setError(true);
+      setTimeout(()=>{setPin("");setError(false);setChecking(false)},420);
+      return;
+    }
+    setChecking(false);
+  };
+
+  const press=(digit:string)=>{
+    if(checking || pin.length>=4)return;
+    const next=pin+digit;
+    setPin(next);
+    if(next.length===4)void verify(next);
+  };
+
+  useEffect(()=>{
+    const onKey=(e:KeyboardEvent)=>{
+      if(/^[0-9]$/.test(e.key))press(e.key);
+      if(e.key==="Backspace")setPin(v=>v.slice(0,-1));
+    };
+    window.addEventListener("keydown",onKey);
+    return()=>window.removeEventListener("keydown",onKey);
+  },[pin,checking]);
+
+  return <div className="passcode-screen">
+    <div className="passcode-brand"><div className="brand-mark">F</div><div><b>FRANCHISE OS</b><span>PRIVATE OWNER ACCESS</span></div></div>
+    <div className={`passcode-card ${error?"error":""}`}>
+      <div className="passcode-lock"><LockKeyhole size={24}/></div>
+      <h1>Вход в платформу</h1>
+      <p>Введите 4-значный код доступа</p>
+      <div className="pin-dots" aria-label={`Введено ${pin.length} из 4 цифр`}>
+        {[0,1,2,3].map(i=><span key={i} className={i<pin.length?"filled":""}/>)}
+      </div>
+      <div className="keypad" aria-label="Цифровая клавиатура">
+        {["1","2","3","4","5","6","7","8","9"].map(n=><button type="button" key={n} onClick={()=>press(n)}>{n}</button>)}
+        <button type="button" className="keypad-empty" aria-hidden="true" tabIndex={-1}></button>
+        <button type="button" onClick={()=>press("0")}>0</button>
+        <button type="button" className="keypad-delete" onClick={()=>setPin(v=>v.slice(0,-1))} aria-label="Удалить цифру"><Delete size={22}/></button>
+      </div>
+      <div className="passcode-status">{error?"Неверный код. Попробуйте ещё раз.":checking?"Проверяем…":"Клавиатура уже готова к вводу"}</div>
+    </div>
+    <div className="passcode-footer">STRIXY · OWNER COCKPIT</div>
+  </div>;
+}
+
 
 function LocationStatus({status}:{status:Location["status"]}) {
   const map={
@@ -580,6 +646,13 @@ export default function FranchiseApp() {
   const [selected,setSelected]=useState("sokol");
   const [mobileOpen,setMobileOpen]=useState(false);
   const [loaded,setLoaded]=useState(false);
+  const [unlocked,setUnlocked]=useState(false);
+  const [authChecked,setAuthChecked]=useState(false);
+
+  useEffect(()=>{
+    setUnlocked(sessionStorage.getItem("franchise-os-unlocked")==="1");
+    setAuthChecked(true);
+  },[]);
 
   useEffect(()=>{
     try{
@@ -590,6 +663,10 @@ export default function FranchiseApp() {
   },[]);
   useEffect(()=>{if(loaded)localStorage.setItem("franchise-os",JSON.stringify(state))},[state,loaded]);
   const reset=()=>{const x=cloneSeed();setState(x);localStorage.setItem("franchise-os",JSON.stringify(x))};
+  const lock=()=>{sessionStorage.removeItem("franchise-os-unlocked");setUnlocked(false);setMobileOpen(false)};
+
+  if(!authChecked)return <div className="passcode-loading"/>;
+  if(!unlocked)return <PasscodeGate onUnlock={()=>setUnlocked(true)}/>;
 
   const content =
     tab==="overview"?<Overview state={state} setTab={setTab} setSelected={setSelected}/>:
@@ -620,7 +697,7 @@ export default function FranchiseApp() {
     <main className="main">
       <header className="topbar">
         <div className="top-left"><button className="icon-btn mobile-only" onClick={()=>setMobileOpen(true)}><Menu size={21}/></button><div><span>{nav.find(n=>n.id===tab)?.label}</span><small>STRIXY · Сокол → Грязовец → Шексна</small></div></div>
-        <div className="top-actions"><button className="quick-pill" onClick={()=>setTab("dossier")}><BookOpen size={15}/> База STRIXY</button><div className="owner-avatar">ИВ</div></div>
+        <div className="top-actions"><button className="quick-pill" onClick={()=>setTab("dossier")}><BookOpen size={15}/> База STRIXY</button><button className="quick-pill lock-pill" onClick={lock}><LockKeyhole size={15}/> Закрыть</button><div className="owner-avatar">ИВ</div></div>
       </header>
       {content}
     </main>
