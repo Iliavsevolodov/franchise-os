@@ -697,7 +697,7 @@ export default function FranchiseApp() {
     <main className="main">
       <header className="topbar">
         <div className="top-left"><button className="icon-btn mobile-only" onClick={()=>setMobileOpen(true)}><Menu size={21}/></button><div><span>{nav.find(n=>n.id===tab)?.label}</span><small>STRIXY · Сокол → Грязовец → Шексна</small></div></div>
-        <div className="top-actions"><button className="quick-pill" onClick={()=>setTab("dossier")}><BookOpen size={15}/> База STRIXY</button><button className="quick-pill lock-pill" onClick={lock}><LockKeyhole size={15}/> Закрыть</button><div className="owner-avatar">ИВ</div></div>
+        <div className="top-actions"><button className="quick-pill" onClick={()=>setTab("dossier")}><BookOpen size={15}/> База STRIXY</button><button className="quick-pill lock-pill" onClick={lock}><LockKeyhole size={15}/> Закрыть</button><button className="owner-avatar" onClick={lock} aria-label="Заблокировать платформу">ИВ</button></div>
       </header>
       {content}
     </main>
