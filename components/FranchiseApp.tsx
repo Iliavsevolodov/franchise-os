@@ -151,6 +151,8 @@ function Locations({state,setState,selected,setSelected}:{state:AppState;setStat
   const l=state.locations.find(x=>x.id===selected)||state.locations[0];
   const pnl=locationPnl(l);
   const update=(patch:Partial<Location>)=>setState((s:AppState)=>({...s,locations:s.locations.map(x=>x.id===l.id?{...x,...patch}:x)}));
+  const addService=()=>update({services:[...l.services,{id:crypto.randomUUID(),name:"Новая услуга",price:500,sharePct:0,masterPct:50}]});
+  const serviceShare=l.services.reduce((s,x)=>s+x.sharePct,0);
   return <div className="page">
     <SectionTitle title="Точки" sub="Экономика и параметры каждой точки"/>
     <div className="tabs-row">{state.locations.map(x=><button key={x.id} className={selected===x.id?"chip active":"chip"} onClick={()=>setSelected(x.id)}>{x.city}</button>)}</div>
@@ -172,15 +174,23 @@ function Locations({state,setState,selected,setSelected}:{state:AppState;setStat
           <label>Платёж рассрочки<NumberInput value={l.installmentMonthly} onChange={v=>update({installmentMonthly:v})}/></label>
         </div>
         <div className="service-box">
-          <div className="row between"><h3>Структура услуг</h3><span className="muted tiny">доля от выручки</span></div>
+          <div className="row between">
+            <div><h3>Структура услуг</h3><span className={serviceShare===100?"muted tiny":"share-warning"}>Сумма долей: {num(serviceShare)}%</span></div>
+            <button className="link-btn" onClick={addService}><Plus size={14}/> Услуга</button>
+          </div>
           <div className="service-lines">
             {l.services.map((s,i)=>{
               const serviceRevenue=l.revenue*s.sharePct/100;
               const procedures=s.price?serviceRevenue/s.price:0;
-              return <div className="service-line" key={s.id}>
-                <div><b>{s.name}</b><small>{money(s.price)} · мастеру {s.masterPct}%</small></div>
-                <div><b>{money(serviceRevenue)}</b><small>≈ {Math.round(procedures)} процедур/мес.</small></div>
-                <NumberInput value={s.sharePct} onChange={v=>update({services:l.services.map((x,j)=>j===i?{...x,sharePct:v}:x)})} suffix="%"/>
+              const patchService=(patch:any)=>update({services:l.services.map((x,j)=>j===i?{...x,...patch}:x)});
+              return <div className="service-line expanded" key={s.id}>
+                <div>
+                  <input className="table-input" value={s.name} onChange={e=>patchService({name:e.target.value})}/>
+                  <small>{money(serviceRevenue)} · ≈ {Math.round(procedures)} процедур/мес.</small>
+                </div>
+                <label><span>Цена</span><NumberInput value={s.price} onChange={v=>patchService({price:v})}/></label>
+                <label><span>Доля</span><NumberInput value={s.sharePct} onChange={v=>patchService({sharePct:v})} suffix="%"/></label>
+                <label><span>Мастеру</span><NumberInput value={s.masterPct} onChange={v=>patchService({masterPct:v})} suffix="%"/></label>
               </div>
             })}
           </div>
