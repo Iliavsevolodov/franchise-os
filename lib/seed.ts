@@ -121,5 +121,90 @@ export const seed: AppState = {
     {id:"sh8",employeeId:"e3",locationId:"sokol",date:"2026-10-05",startTime:"10:00",endTime:"20:00",status:"planned"},
     {id:"sh9",employeeId:"e3",locationId:"sokol",date:"2026-10-08",startTime:"10:00",endTime:"20:00",status:"planned"},
     {id:"sh10",employeeId:"e3",locationId:"sokol",date:"2026-10-11",startTime:"10:00",endTime:"20:00",status:"planned"}
-  ]
+  ],
+  checklistTemplates: [
+    {
+      id:"master-open",title:"Открытие смены",description:"Подготовить рабочее место и быть готовым к началу смены.",
+      role:"master",frequency:"shift_open",locationIds:["sokol","gryazovets","sheksna"],active:true,
+      items:[
+        {id:"mo1",text:"Прийти к началу смены по графику",required:true},
+        {id:"mo2",text:"Проверить чистоту и порядок рабочего места",required:true},
+        {id:"mo3",text:"Подготовить и обработать рабочие инструменты по внутренним правилам",required:true},
+        {id:"mo4",text:"Проверить запас основных расходных материалов на смену",required:true},
+        {id:"mo5",text:"Проверить исправность рабочего оборудования",required:true},
+        {id:"mo6",text:"Сообщить управляющему о нехватке расходников, поломках или других проблемах",required:false}
+      ]
+    },
+    {
+      id:"master-close",title:"Закрытие смены",description:"Оставить рабочее место полностью готовым к следующей смене.",
+      role:"master",frequency:"shift_close",locationIds:["sokol","gryazovets","sheksna"],active:true,
+      items:[
+        {id:"mc1",text:"Очистить рабочее место после последнего клиента",required:true},
+        {id:"mc2",text:"Обработать и убрать рабочие инструменты по внутренним правилам",required:true},
+        {id:"mc3",text:"Убрать волосы и рабочие отходы со своей зоны",required:true},
+        {id:"mc4",text:"Проверить, что оборудование в рабочей зоне выключено или оставлено в безопасном режиме",required:true},
+        {id:"mc5",text:"Пополнить расходники или сообщить, что требуется пополнение",required:false},
+        {id:"mc6",text:"Передать управляющему информацию о поломках, жалобах или нестандартных ситуациях",required:false}
+      ]
+    },
+    {
+      id:"master-weekly",title:"Еженедельный контроль рабочего места",description:"Короткая проверка состояния своей рабочей зоны.",
+      role:"master",frequency:"weekly",locationIds:["sokol","gryazovets","sheksna"],active:true,
+      items:[
+        {id:"mw1",text:"Проверить состояние инструментов и принадлежностей",required:true},
+        {id:"mw2",text:"Проверить остатки расходных материалов",required:true},
+        {id:"mw3",text:"Сообщить о том, что требует ремонта или замены",required:true},
+        {id:"mw4",text:"Проверить порядок хранения личных и рабочих вещей",required:false}
+      ]
+    },
+    {
+      id:"manager-open",title:"Открытие точки",description:"Проверка готовности точки и команды к рабочему дню.",
+      role:"manager",frequency:"daily",locationIds:["sokol","gryazovets","sheksna"],active:true,
+      items:[
+        {id:"go1",text:"Проверить готовность помещения к открытию",required:true},
+        {id:"go2",text:"Проверить выход мастеров по графику",required:true},
+        {id:"go3",text:"Проверить чистоту клиентской и рабочих зон",required:true},
+        {id:"go4",text:"Проверить наличие критичных расходных материалов",required:true},
+        {id:"go5",text:"Проверить работоспособность ключевого оборудования и терминала франшизы",required:true},
+        {id:"go6",text:"Зафиксировать отсутствующих сотрудников и проблемы до начала работы",required:false}
+      ]
+    },
+    {
+      id:"manager-daily",title:"Ежедневный контроль точки",description:"Основные операционные показатели и проблемы в течение дня.",
+      role:"manager",frequency:"daily",locationIds:["sokol","gryazovets","sheksna"],active:true,
+      items:[
+        {id:"gd1",text:"Проверить выполнение плана по выручке и клиентам",required:true},
+        {id:"gd2",text:"Проверить загрузку и выход сотрудников",required:true},
+        {id:"gd3",text:"Проверить наличие расходников и хозяйственных материалов",required:true},
+        {id:"gd4",text:"Разобрать жалобы, отзывы и нестандартные ситуации",required:false},
+        {id:"gd5",text:"Проверить поломки, заявки на ремонт и обслуживание",required:false},
+        {id:"gd6",text:"Зафиксировать задачи, которые переходят на следующий день",required:true}
+      ]
+    },
+    {
+      id:"manager-close",title:"Закрытие точки",description:"Контроль завершения рабочего дня.",
+      role:"manager",frequency:"shift_close",locationIds:["sokol","gryazovets","sheksna"],active:true,
+      items:[
+        {id:"gc1",text:"Проверить закрытие смен сотрудников",required:true},
+        {id:"gc2",text:"Проверить порядок и чистоту во всех рабочих зонах",required:true},
+        {id:"gc3",text:"Проверить выключение оборудования, которое не должно работать после закрытия",required:true},
+        {id:"gc4",text:"Сверить доступный отчёт по выручке за день",required:true},
+        {id:"gc5",text:"Зафиксировать неисправности, дефицит расходников и задачи на завтра",required:true},
+        {id:"gc6",text:"Убедиться, что точка закрыта по внутреннему регламенту",required:true}
+      ]
+    },
+    {
+      id:"manager-weekly",title:"Еженедельный контроль управляющего",description:"Проверка команды, графика, запасов и состояния точки.",
+      role:"manager",frequency:"weekly",locationIds:["sokol","gryazovets","sheksna"],active:true,
+      items:[
+        {id:"gw1",text:"Сформировать и проверить график мастеров на следующую неделю",required:true},
+        {id:"gw2",text:"Проверить выручку, клиентов, средний чек и ФОТ по мастерам",required:true},
+        {id:"gw3",text:"Проверить остатки расходников и план закупок",required:true},
+        {id:"gw4",text:"Проверить состояние оборудования, мебели и рабочих мест",required:true},
+        {id:"gw5",text:"Разобрать отзывы клиентов и повторяющиеся проблемы",required:true},
+        {id:"gw6",text:"Передать владельцу критичные вопросы, расходы и решения, требующие согласования",required:true}
+      ]
+    }
+  ],
+  checklistCompletions: []
 };
