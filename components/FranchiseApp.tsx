@@ -15,12 +15,14 @@ import {
 } from "recharts";
 import { seed } from "@/lib/seed";
 import { franchiseData } from "@/lib/franchiseData";
-import { ActualMonth, AppState, CashEvent, Employee, FundTx, Location, Scenario } from "@/lib/types";
+import { ActualMonth, AppState, AppUser, CashEvent, Employee, FundTx, Location, Scenario } from "@/lib/types";
 import { actualNet, employeeCost, locationPnl, money, num } from "@/lib/finance";
+import { navByRole, roleLabels, scopedState } from "@/lib/access";
+import { AccessPage, ManagerDashboard, MasterDashboard } from "@/components/RoleViews";
 
 type Tab =
   | "overview" | "calendar" | "actuals" | "notifications" | "locations" | "finance" | "scenarios"
-  | "staff" | "funds" | "openings" | "payments" | "dossier" | "settings";
+  | "staff" | "funds" | "openings" | "payments" | "dossier" | "access" | "settings";
 
 const nav: {id:Tab; label:string; icon:any; group:"main"|"manage"|"system"}[] = [
   {id:"overview",label:"Главная",icon:LayoutDashboard,group:"main"},
@@ -35,6 +37,7 @@ const nav: {id:Tab; label:string; icon:any; group:"main"|"manage"|"system"}[] = 
   {id:"openings",label:"Открытия",icon:CalendarRange,group:"manage"},
   {id:"payments",label:"Платежи",icon:CreditCard,group:"manage"},
   {id:"dossier",label:"База STRIXY",icon:BookOpen,group:"manage"},
+  {id:"access",label:"Роли и доступы",icon:ShieldCheck,group:"system"},
   {id:"settings",label:"Настройки",icon:Settings,group:"system"},
 ];
 
@@ -62,6 +65,8 @@ function hydrateState(raw:any): AppState {
     dismissedNotifications:Array.isArray(raw.dismissedNotifications)?raw.dismissedNotifications:base.dismissedNotifications,
     cashBalance:Number.isFinite(raw.cashBalance)?raw.cashBalance:base.cashBalance,
     privateNotes:Array.isArray(raw.privateNotes)?raw.privateNotes:base.privateNotes,
+    users:Array.isArray(raw.users)?raw.users:base.users,
+    shifts:Array.isArray(raw.shifts)?raw.shifts:base.shifts,
   };
 }
 
@@ -1017,6 +1022,7 @@ export default function FranchiseApp() {
   const [loaded,setLoaded]=useState(false);
   const [unlocked,setUnlocked]=useState(false);
   const [authChecked,setAuthChecked]=useState(false);
+  const [viewUserId,setViewUserId]=useState("owner");
 
   useEffect(()=>{
     setUnlocked(sessionStorage.getItem("franchise-os-unlocked")==="1");
@@ -1047,13 +1053,27 @@ export default function FranchiseApp() {
     }
   },[unlocked,loaded,activeNotifications]);
 
-  const reset=()=>{const x=cloneSeed();setState(x);localStorage.setItem("franchise-os",JSON.stringify(x))};
-  const lock=()=>{sessionStorage.removeItem("franchise-os-unlocked");setUnlocked(false);setMobileOpen(false)};
+  const reset=()=>{const x=cloneSeed();setState(x);setViewUserId("owner");localStorage.setItem("franchise-os",JSON.stringify(x))};
+  const lock=()=>{sessionStorage.removeItem("franchise-os-unlocked");setUnlocked(false);setViewUserId("owner");setMobileOpen(false)};
+  const viewUser:AppUser=state.users.find(u=>u.id===viewUserId && u.status!=="disabled") ?? state.users.find(u=>u.id==="owner") ?? {
+    id:"owner",name:"Владелец",role:"owner",locationIds:state.locations.map(l=>l.id),status:"active"
+  };
+  const role=viewUser.role;
+  const visibleState=scopedState(state,viewUser);
+  const allowedTabs=new Set(navByRole[role] as Tab[]);
+  const changeView=(id:string)=>{
+    const next=state.users.find(u=>u.id===id);
+    if(!next || next.status==="disabled")return;
+    setViewUserId(id);
+    setTab("overview");
+    setSelected(next.locationIds[0]??"sokol");
+    setMobileOpen(false);
+  };
 
   if(!authChecked)return <div className="passcode-loading"/>;
   if(!unlocked)return <PasscodeGate onUnlock={()=>setUnlocked(true)}/>;
 
-  const content =
+  const ownerContent =
     tab==="overview"?<Overview state={state} setTab={setTab} setSelected={setSelected}/>:
     tab==="calendar"?<CashCalendar state={state} setState={setState}/>:
     tab==="actuals"?<Actuals state={state} setState={setState}/>:
@@ -1066,9 +1086,18 @@ export default function FranchiseApp() {
     tab==="openings"?<Openings state={state} setState={setState}/>:
     tab==="payments"?<Payments state={state}/>:
     tab==="dossier"?<Dossier/>:
+    tab==="access"?<AccessPage state={state} setState={setState}/>:
     <SettingsPage state={state} setState={setState} reset={reset}/>;
 
-  const renderNav=(group:"main"|"manage"|"system")=>nav.filter(n=>n.group===group).map(n=>{
+  const managerContent =
+    tab==="staff"?<Staff state={visibleState} setState={setState}/>:
+    tab==="openings"?<Openings state={visibleState} setState={setState}/>:
+    <ManagerDashboard state={visibleState} user={viewUser}/>;
+
+  const masterContent=<MasterDashboard state={visibleState} user={viewUser}/>;
+  const content=role==="owner"?ownerContent:role==="manager"?managerContent:masterContent;
+
+  const renderNav=(group:"main"|"manage"|"system")=>nav.filter(n=>n.group===group && allowedTabs.has(n.id)).map(n=>{
     const I=n.icon;
     const badge=n.id==="notifications"?activeNotifications.length:0;
     return <button key={n.id} className={tab===n.id?"nav-item active":"nav-item"} onClick={()=>{setTab(n.id);setMobileOpen(false)}}><I size={18}/><span>{n.label}</span>{badge>0&&<b className="nav-badge">{badge>9?"9+":badge}</b>}{tab===n.id&&<span className="nav-active-dot"/>}</button>;
@@ -1084,14 +1113,20 @@ export default function FranchiseApp() {
 
     <main className="main">
       <header className="topbar">
-        <div className="top-left"><button className="icon-btn mobile-only" onClick={()=>setMobileOpen(true)}><Menu size={21}/></button><div><span>{nav.find(n=>n.id===tab)?.label}</span><small>STRIXY · Сокол → Грязовец → Шексна</small></div></div>
-        <div className="top-actions"><button className="notification-button" onClick={()=>setTab("notifications")} aria-label="Уведомления"><Bell size={17}/>{activeNotifications.length>0&&<span>{activeNotifications.length>9?"9+":activeNotifications.length}</span>}</button><button className="quick-pill" onClick={()=>setTab("dossier")}><BookOpen size={15}/> База STRIXY</button><button className="quick-pill lock-pill" onClick={lock}><LockKeyhole size={15}/> Закрыть</button><button className="owner-avatar" onClick={lock} aria-label="Заблокировать платформу">ИВ</button></div>
+        <div className="top-left"><button className="icon-btn mobile-only" onClick={()=>setMobileOpen(true)}><Menu size={21}/></button><div><span>{role==="owner"?(nav.find(n=>n.id===tab)?.label??"Главная"):roleLabels[role]}</span><small>{role==="owner"?"STRIXY · Сокол → Грязовец → Шексна":`${viewUser.name} · ${visibleState.locations.map(l=>l.city).join(", ")||"без точки"}`}</small></div></div>
+        <div className="top-actions">
+          <label className="role-viewer"><span>Режим</span><select value={viewUser.id} onChange={e=>changeView(e.target.value)}>{state.users.filter(u=>u.status!=="disabled").map(u=><option key={u.id} value={u.id}>{roleLabels[u.role]} · {u.name}</option>)}</select></label>
+          {role==="owner"&&<button className="notification-button" onClick={()=>setTab("notifications")} aria-label="Уведомления"><Bell size={17}/>{activeNotifications.length>0&&<span>{activeNotifications.length>9?"9+":activeNotifications.length}</span>}</button>}
+          {role==="owner"&&<button className="quick-pill" onClick={()=>setTab("dossier")}><BookOpen size={15}/> База STRIXY</button>}
+          <button className="quick-pill lock-pill" onClick={lock}><LockKeyhole size={15}/> Закрыть</button>
+          <button className={`owner-avatar role-${role}`} onClick={lock} aria-label="Заблокировать платформу">{role==="owner"?"ИВ":role==="manager"?"У":"М"}</button>
+        </div>
       </header>
       {content}
     </main>
 
     <div className="mobile-nav">
-      {nav.filter(n=>["overview","calendar","actuals","notifications","locations"].includes(n.id)).map(n=>{const I=n.icon;const badge=n.id==="notifications"?activeNotifications.length:0;return <button key={n.id} className={tab===n.id?"active":""} onClick={()=>setTab(n.id)}><span className="mobile-nav-icon"><I size={19}/>{badge>0&&<b>{badge>9?"9+":badge}</b>}</span><span>{n.label}</span></button>})}
+      {nav.filter(n=>allowedTabs.has(n.id) && (role==="owner"?["overview","calendar","actuals","notifications","locations"].includes(n.id):role==="manager"?["overview","staff","openings"].includes(n.id):["overview"].includes(n.id))).map(n=>{const I=n.icon;const badge=role==="owner"&&n.id==="notifications"?activeNotifications.length:0;return <button key={n.id} className={tab===n.id?"active":""} onClick={()=>setTab(n.id)}><span className="mobile-nav-icon"><I size={19}/>{badge>0&&<b>{badge>9?"9+":badge}</b>}</span><span>{n.label}</span></button>})}
     </div>
   </div>;
 }
