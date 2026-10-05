@@ -102,5 +102,24 @@ export const seed: AppState = {
   privateNotes: [
     {id:"n1",title:"Главный принцип",body:"Не открывать три точки одновременно. Сокол должен сначала подтвердить поток, ФОТ и реальную чистую прибыль.",updatedAt:"2026-10-05"},
     {id:"n2",title:"Базовый минимум зрелой сети",body:"Сокол 800 000 ₽, Грязовец 500 000 ₽, Шексна 500 000 ₽ выручки в месяц.",updatedAt:"2026-10-05"}
+  ],
+  users: [
+    {id:"owner",name:"Илья Всеволодов",role:"owner",email:"",locationIds:["sokol","gryazovets","sheksna"],status:"active"},
+    {id:"manager-sokol",name:"Управляющий · Сокол",role:"manager",email:"",locationIds:["sokol"],status:"active"},
+    {id:"master-1",name:"Мастер 1",role:"master",email:"",locationIds:["sokol"],employeeId:"e1",status:"active"},
+    {id:"master-2",name:"Мастер 2",role:"master",email:"",locationIds:["sokol"],employeeId:"e2",status:"active"},
+    {id:"master-nail-1",name:"Nail-мастер 1",role:"master",email:"",locationIds:["sokol"],employeeId:"e3",status:"active"}
+  ],
+  shifts: [
+    {id:"sh1",employeeId:"e1",locationId:"sokol",date:"2026-10-05",startTime:"10:00",endTime:"20:00",status:"planned"},
+    {id:"sh2",employeeId:"e1",locationId:"sokol",date:"2026-10-07",startTime:"10:00",endTime:"20:00",status:"planned"},
+    {id:"sh3",employeeId:"e1",locationId:"sokol",date:"2026-10-09",startTime:"10:00",endTime:"20:00",status:"planned"},
+    {id:"sh4",employeeId:"e1",locationId:"sokol",date:"2026-10-11",startTime:"10:00",endTime:"20:00",status:"planned"},
+    {id:"sh5",employeeId:"e2",locationId:"sokol",date:"2026-10-06",startTime:"10:00",endTime:"20:00",status:"planned"},
+    {id:"sh6",employeeId:"e2",locationId:"sokol",date:"2026-10-08",startTime:"10:00",endTime:"20:00",status:"planned"},
+    {id:"sh7",employeeId:"e2",locationId:"sokol",date:"2026-10-10",startTime:"10:00",endTime:"20:00",status:"planned"},
+    {id:"sh8",employeeId:"e3",locationId:"sokol",date:"2026-10-05",startTime:"10:00",endTime:"20:00",status:"planned"},
+    {id:"sh9",employeeId:"e3",locationId:"sokol",date:"2026-10-08",startTime:"10:00",endTime:"20:00",status:"planned"},
+    {id:"sh10",employeeId:"e3",locationId:"sokol",date:"2026-10-11",startTime:"10:00",endTime:"20:00",status:"planned"}
   ]
 };
