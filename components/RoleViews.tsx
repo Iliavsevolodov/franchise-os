@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState } from "react";
 import {
-  BadgeCheck, BriefcaseBusiness, CalendarDays, CheckCircle2, CircleDollarSign,
-  Clock3, Gauge, ShieldCheck, TrendingUp, UserCog, Users, WalletCards
+  BadgeCheck, CalendarDays, CheckCircle2, CircleDollarSign, Clock3, Gauge,
+  Plus, ShieldCheck, Trash2, TrendingUp, UserCog, Users, WalletCards
 } from "lucide-react";
 import { AppState, AppUser, UserRole } from "@/lib/types";
 import { employeeCost, locationPnl, money, num } from "@/lib/finance";
@@ -128,6 +128,59 @@ export function MasterDashboard({state,user}:{state:AppState;user:AppUser}) {
         </div>
       </section>
     </div>
+  </div>;
+}
+
+export function SchedulePage({state,setState}:{state:AppState;setState:React.Dispatch<React.SetStateAction<AppState>>}) {
+  const firstEmployee=state.employees[0];
+  const [employeeId,setEmployeeId]=useState(firstEmployee?.id??"");
+  const [date,setDate]=useState("2026-10-05");
+  const [startTime,setStartTime]=useState("10:00");
+  const [endTime,setEndTime]=useState("20:00");
+
+  const addShift=()=>{
+    const employee=state.employees.find(e=>e.id===employeeId);
+    if(!employee || !date)return;
+    setState(s=>({...s,shifts:[...s.shifts,{
+      id:crypto.randomUUID(),employeeId:employee.id,locationId:employee.locationId,date,startTime,endTime,status:"planned"
+    }]}));
+  };
+
+  const removeShift=(id:string)=>setState(s=>({...s,shifts:s.shifts.filter(x=>x.id!==id)}));
+  const rows=state.shifts.slice().sort((a,b)=>(a.date+a.startTime).localeCompare(b.date+b.startTime));
+
+  return <div className="page">
+    <div className="page-head"><div><span className="eyebrow">ГРАФИК РАБОТЫ</span><h1>Смены мастеров</h1><p>Управляющий назначает смены, мастер видит только свой график.</p></div></div>
+    <div className="layout-2">
+      <section className="panel">
+        <SectionTitle title="Добавить смену" sub="Выбери мастера, день и время"/>
+        <div className="schedule-form">
+          <label className="field"><span>Мастер</span><select value={employeeId} onChange={e=>setEmployeeId(e.target.value)}>{state.employees.map(e=><option key={e.id} value={e.id}>{e.name} · {state.locations.find(l=>l.id===e.locationId)?.city}</option>)}</select></label>
+          <label className="field"><span>Дата</span><input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
+          <label className="field"><span>Начало</span><input type="time" value={startTime} onChange={e=>setStartTime(e.target.value)}/></label>
+          <label className="field"><span>Конец</span><input type="time" value={endTime} onChange={e=>setEndTime(e.target.value)}/></label>
+        </div>
+        <button className="btn primary mt-sm" onClick={addShift} disabled={!employeeId}><Plus size={16}/> Добавить смену</button>
+      </section>
+
+      <section className="panel">
+        <SectionTitle title="Сводка" sub="Количество смен в текущем расписании"/>
+        <div className="manager-team-summary">
+          {state.employees.slice(0,4).map(e=><div key={e.id}><span>{e.name}</span><b>{state.shifts.filter(s=>s.employeeId===e.id).length} смен</b></div>)}
+        </div>
+      </section>
+    </div>
+
+    <section className="panel table-panel mt">
+      <div className="table-wrap"><table>
+        <thead><tr><th>Дата</th><th>Мастер</th><th>Точка</th><th>Время</th><th>Статус</th><th></th></tr></thead>
+        <tbody>{rows.map(s=>{
+          const e=state.employees.find(x=>x.id===s.employeeId);
+          const l=state.locations.find(x=>x.id===s.locationId);
+          return <tr key={s.id}><td>{new Date(s.date+"T00:00:00").toLocaleDateString("ru-RU")}</td><td><b>{e?.name??"—"}</b></td><td>{l?.city??"—"}</td><td>{s.startTime}–{s.endTime}</td><td>{s.status==="planned"?"Запланирована":s.status==="completed"?"Отработана":s.status==="missed"?"Неявка":"Выходной"}</td><td><button className="icon-btn" onClick={()=>removeShift(s.id)} aria-label="Удалить смену"><Trash2 size={16}/></button></td></tr>;
+        })}</tbody>
+      </table></div>
+    </section>
   </div>;
 }
 
