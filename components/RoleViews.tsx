@@ -21,7 +21,8 @@ function SectionTitle({title,sub}:{title:string;sub?:string}) {
 }
 
 export function ManagerDashboard({state,user}:{state:AppState;user:AppUser}) {
-  const location=state.locations[0];
+  const [locationId,setLocationId]=useState(state.locations[0]?.id??"");
+  const location=state.locations.find(l=>l.id===locationId)??state.locations[0];
   if(!location)return <div className="page"><div className="panel">Для управляющего пока не назначена точка.</div></div>;
 
   const p=locationPnl(location);
@@ -34,7 +35,10 @@ export function ManagerDashboard({state,user}:{state:AppState;user:AppUser}) {
   return <div className="page">
     <div className="page-head">
       <div><span className="eyebrow">РЕЖИМ УПРАВЛЯЮЩЕГО</span><h1>{location.city}</h1><p>Операционные показатели точки без финансов владельца.</p></div>
-      <span className="role-badge manager"><UserCog size={15}/> Управляющий</span>
+      <div className="manager-head-actions">
+        {state.locations.length>1&&<select className="manager-location-select" value={location.id} onChange={e=>setLocationId(e.target.value)}>{state.locations.map(l=><option key={l.id} value={l.id}>{l.city}</option>)}</select>}
+        <span className="role-badge manager"><UserCog size={15}/> Управляющий</span>
+      </div>
     </div>
 
     <div className="kpi-grid">
@@ -214,7 +218,7 @@ export function AccessPage({state,setState}:{state:AppState;setState:React.Dispa
         <tbody>{state.users.map(u=><tr key={u.id}>
           <td><input className="table-input" value={u.name} disabled={u.id==="owner"} onChange={e=>updateUser(u.id,{name:e.target.value})}/></td>
           <td><select value={u.role} disabled={u.id==="owner"} onChange={e=>updateUser(u.id,{role:e.target.value as UserRole})}><option value="owner">Владелец</option><option value="manager">Управляющий</option><option value="master">Мастер</option></select></td>
-          <td><select value={u.locationIds[0]??""} disabled={u.id==="owner"} onChange={e=>updateUser(u.id,{locationIds:e.target.value?[e.target.value]:[]})}><option value="">Без точки</option>{state.locations.map(l=><option value={l.id} key={l.id}>{l.city}</option>)}</select></td>
+          <td><div className="access-locations">{state.locations.map(l=><label key={l.id} className={u.id==="owner"?"disabled":""}><input type="checkbox" disabled={u.id==="owner"} checked={u.locationIds.includes(l.id)} onChange={e=>updateUser(u.id,{locationIds:e.target.checked?[...new Set([...u.locationIds,l.id])]:u.locationIds.filter(id=>id!==l.id)})}/><span>{l.city}</span></label>)}</div></td>
           <td><select value={u.employeeId??""} disabled={u.role!=="master"} onChange={e=>updateUser(u.id,{employeeId:e.target.value||undefined})}><option value="">Не привязан</option>{state.employees.map(e=><option value={e.id} key={e.id}>{e.name}</option>)}</select></td>
           <td><select value={u.status} disabled={u.id==="owner"} onChange={e=>updateUser(u.id,{status:e.target.value as AppUser["status"]})}><option value="active">Активен</option><option value="invited">Приглашён</option><option value="disabled">Отключён</option></select></td>
         </tr>)}</tbody>
