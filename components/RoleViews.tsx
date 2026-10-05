@@ -183,7 +183,10 @@ export function MasterDashboard({state,user,onNavigate}:{state:AppState;user:App
 export function SchedulePage({state,setState}:{state:AppState;setState:React.Dispatch<React.SetStateAction<AppState>>}) {
   const firstEmployee=state.employees[0];
   const [employeeId,setEmployeeId]=useState(firstEmployee?.id??"");
-  const [date,setDate]=useState("2026-10-05");
+  const [date,setDate]=useState(()=>{
+    const d=new Date();
+    return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");
+  });
   const [startTime,setStartTime]=useState("10:00");
   const [endTime,setEndTime]=useState("20:00");
 
