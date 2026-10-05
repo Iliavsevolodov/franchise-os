@@ -18,6 +18,30 @@ export const navByRole: Record<UserRole,string[]> = {
   master:["overview","checklists","requests"]
 };
 
+export function switchableUsers(state:AppState, accessUser:AppUser):AppUser[] {
+  const active=state.users.filter(u=>u.status!=="disabled");
+
+  if(accessUser.role==="owner"){
+    return active.sort((a,b)=>{
+      const rank={owner:0,manager:1,master:2};
+      return rank[a.role]-rank[b.role] || a.name.localeCompare(b.name,"ru");
+    });
+  }
+
+  if(accessUser.role==="manager"){
+    const allowed=new Set(accessUser.locationIds);
+    const masters=active.filter(u=>
+      u.role==="master" && u.locationIds.some(id=>allowed.has(id))
+    );
+    return [accessUser,...masters.filter(u=>u.id!==accessUser.id)].sort((a,b)=>{
+      const rank={owner:0,manager:1,master:2};
+      return rank[a.role]-rank[b.role] || a.name.localeCompare(b.name,"ru");
+    });
+  }
+
+  return [accessUser];
+}
+
 export function scopedState(state:AppState,user:AppUser):AppState {
   if(user.role==="owner") return state;
   const allowed=new Set(user.locationIds);
