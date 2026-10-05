@@ -206,5 +206,7 @@ export const seed: AppState = {
       ]
     }
   ],
-  checklistCompletions: []
+  checklistCompletions: [],
+  workRequests: [],
+  staffNotifications: []
 };
