@@ -54,16 +54,46 @@ function ChecklistCard({
       const current=existing?.completedItemIds??[];
       const next=current.includes(itemId)?current.filter(x=>x!==itemId):[...current,itemId];
       const requiredIds=template.items.filter(i=>i.required).map(i=>i.id);
+      const wasComplete=requiredIds.every(id=>current.includes(id));
       const complete=requiredIds.every(id=>next.includes(id));
-      if(existing){
-        return {...s,checklistCompletions:s.checklistCompletions.map(c=>c.id===existing.id?{
-          ...c,completedItemIds:next,completedAt:complete?new Date().toISOString():undefined
-        }:c)};
+      const now=new Date().toISOString();
+      const completionId=existing?.id??crypto.randomUUID();
+
+      const checklistCompletions=existing
+        ?s.checklistCompletions.map(c=>c.id===existing.id?{...c,completedItemIds:next,completedAt:complete?now:undefined}:c)
+        :[...s.checklistCompletions,{
+          id:completionId,templateId:template.id,userId,locationId,date:today,
+          completedItemIds:next,completedAt:complete?now:undefined
+        }];
+
+      let staffNotifications=s.staffNotifications;
+      if(complete&&!wasComplete&&template.role==="master"){
+        const master=s.users.find(u=>u.id===userId);
+        const masterName=master?.name??"Мастер";
+        const managers=s.users.filter(u=>u.role==="manager"&&u.status==="active"&&u.locationIds.includes(locationId));
+        const type=template.frequency==="shift_open"?"shift_ready" as const:"checklist_complete" as const;
+        const title=template.frequency==="shift_open"
+          ?`${masterName} готов к смене`
+          :`${masterName} заполнил чек-лист`;
+        const body=template.frequency==="shift_open"
+          ?`Чек-лист «${template.title}» выполнен полностью. Мастер подтвердил готовность к работе.`
+          :`Выполнен чек-лист «${template.title}».`;
+        const already=s.staffNotifications.some(n=>n.checklistCompletionId===completionId&&n.type===type);
+        if(!already&&managers.length){
+          staffNotifications=[...s.staffNotifications,...managers.map(manager=>({
+            id:crypto.randomUUID(),
+            userId:manager.id,
+            locationId,
+            type,
+            title,
+            body,
+            createdAt:now,
+            checklistCompletionId:completionId
+          }))];
+        }
       }
-      return {...s,checklistCompletions:[...s.checklistCompletions,{
-        id:crypto.randomUUID(),templateId:template.id,userId,locationId,date:today,
-        completedItemIds:next,completedAt:complete?new Date().toISOString():undefined
-      }]};
+
+      return {...s,checklistCompletions,staffNotifications};
     });
   };
 
