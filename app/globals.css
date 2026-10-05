@@ -1514,3 +1514,50 @@ td small.cell-sub,
     font-size:10px;
   }
 }
+
+
+/* Hierarchical role switcher */
+.mobile-role-switch{
+  display:none;
+  margin:2px 7px 8px;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#f8f9fb;
+}
+.mobile-role-switch>span{
+  display:block;
+  margin-bottom:6px;
+  font-size:9px;
+  font-weight:850;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.mobile-role-switch select{
+  width:100%;
+  min-height:42px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:#fff;
+  color:var(--text);
+  padding:8px 10px;
+  font-size:13px;
+  font-weight:750;
+  outline:none;
+}
+.role-viewer select optgroup,
+.mobile-role-switch select optgroup{
+  font-weight:800;
+  color:#596170;
+}
+.role-viewer select option,
+.mobile-role-switch select option{
+  color:var(--text);
+  font-weight:650;
+}
+
+@media(max-width:760px){
+  .mobile-role-switch{display:block}
+  .mobile-role-switch select{font-size:16px}
+}
