@@ -1,4 +1,5 @@
 export type LocationStatus = "planned" | "opening" | "active";
+export type UserRole = "owner" | "manager" | "master";
 
 export type ServiceLine = {
   id: string;
@@ -126,6 +127,26 @@ export type PrivateNote = {
   title: string;
   body: string;
   updatedAt: string;
+};
+
+export type AppUser = {
+  id: string;
+  name: string;
+  role: UserRole;
+  email?: string;
+  locationIds: string[];
+  employeeId?: string;
+  status: "active" | "invited" | "disabled";
+};
+
+export type WorkShift = {
+  id: string;
+  employeeId: string;
+  locationId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: "planned" | "completed" | "missed" | "dayoff";
 };
 
 export type AppState = {
