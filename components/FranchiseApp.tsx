@@ -1044,7 +1044,7 @@ export default function FranchiseApp() {
   );
 
   useEffect(()=>{
-    if(!unlocked||!loaded||typeof Notification==="undefined"||Notification.permission!=="granted")return;
+    if(viewUserId!=="owner"||!unlocked||!loaded||typeof Notification==="undefined"||Notification.permission!=="granted")return;
     const important=activeNotifications.filter(n=>n.level==="critical"||n.level==="warning").slice(0,4);
     for(const n of important){
       const key=`franchise-os-notified-${n.id}`;
@@ -1052,7 +1052,7 @@ export default function FranchiseApp() {
       new Notification(n.title,{body:n.body,tag:n.id});
       sessionStorage.setItem(key,"1");
     }
-  },[unlocked,loaded,activeNotifications]);
+  },[unlocked,loaded,activeNotifications,viewUserId]);
 
   const reset=()=>{const x=cloneSeed();setState(x);setViewUserId("owner");localStorage.setItem("franchise-os",JSON.stringify(x))};
   const lock=()=>{sessionStorage.removeItem("franchise-os-unlocked");setUnlocked(false);setViewUserId("owner");setMobileOpen(false)};
