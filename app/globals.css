@@ -1451,3 +1451,66 @@ td{font-size:11px;padding:12px 14px}
 @media(max-width:760px){
   .sidebar-backdrop{display:block}
 }
+
+
+/* Readability floor for operational text */
+td small.cell-sub,
+.scenario-cities small,
+.transactions small,
+.task small,
+.dossier-revenue small,
+.day-events small,
+.cash-event-copy span,
+.cash-event-copy small,
+.variance-row span,
+.notification-copy span,
+.notification-copy small,
+.forecast-strip span,
+.manager-team-summary span,
+.simple-list small,
+.shift-date small,
+.master-stats span,
+.checklist-title span,
+.checklist-body>p,
+.owner-check-row small,
+.compliance-user small,
+.staff-notification-copy small,
+.staff-notification-copy em,
+.request-items-editor>.row small,
+.request-history-row small,
+.request-history-row>em,
+.purchase-list small,
+.request-source small,
+.manager-note>span,
+.attention-item small,
+.quick-actions small,
+.role-action-grid small,
+.master-today-action small{
+  font-size:10px;
+}
+
+.request-status,
+.checklist-progress b,
+.checklist-complete,
+.template-options select,
+.template-options label,
+.template-locations label,
+.template-items input,
+.compliance-list>div>b{
+  font-size:9px;
+}
+
+@media(max-width:760px){
+  .staff-notification-copy small,
+  .request-history-row small,
+  .purchase-list small,
+  .request-source small,
+  .attention-item small,
+  .quick-actions small,
+  .role-action-grid small,
+  .master-today-action small,
+  .checklist-title span,
+  .checklist-body>p{
+    font-size:10px;
+  }
+}
