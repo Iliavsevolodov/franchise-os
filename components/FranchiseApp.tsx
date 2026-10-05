@@ -1114,6 +1114,14 @@ export default function FranchiseApp() {
   },[]);
 
   useEffect(()=>{
+    if(typeof document==="undefined")return;
+    document.body.style.overflow=mobileOpen?"hidden":"";
+    const onKey=(e:KeyboardEvent)=>{if(e.key==="Escape")setMobileOpen(false)};
+    window.addEventListener("keydown",onKey);
+    return()=>{document.body.style.overflow="";window.removeEventListener("keydown",onKey)};
+  },[mobileOpen]);
+
+  useEffect(()=>{
     try{
       const raw=localStorage.getItem("franchise-os");
       if(raw)setState(hydrateState(JSON.parse(raw)));
@@ -1199,6 +1207,7 @@ export default function FranchiseApp() {
   });
 
   return <div className="app-shell">
+    {mobileOpen&&<button className="sidebar-backdrop mobile-only" onClick={()=>setMobileOpen(false)} aria-label="Закрыть меню"/>}
     <aside className={`sidebar ${mobileOpen?"open":""}`}>
       <div className="brand"><div className="brand-mark">F</div><div><strong>FRANCHISE OS</strong><span>STRIXY</span></div><button className="icon-btn mobile-only close-nav" onClick={()=>setMobileOpen(false)}><X size={20}/></button></div>
       <nav className="sidebar-nav">
