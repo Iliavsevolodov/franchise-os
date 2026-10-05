@@ -13,8 +13,8 @@ export const roleDescriptions: Record<UserRole,string> = {
 };
 
 export const navByRole: Record<UserRole,string[]> = {
-  owner:["overview","calendar","actuals","notifications","locations","finance","scenarios","staff","funds","openings","payments","dossier","access","settings"],
-  manager:["overview","staff","openings"],
+  owner:["overview","calendar","actuals","notifications","locations","finance","scenarios","staff","schedule","funds","openings","payments","dossier","access","settings"],
+  manager:["overview","staff","schedule","openings"],
   master:["overview"]
 };
 
