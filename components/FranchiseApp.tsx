@@ -26,24 +26,38 @@ type Tab =
   | "overview" | "calendar" | "actuals" | "notifications" | "locations" | "finance" | "scenarios"
   | "staff" | "schedule" | "checklists" | "requests" | "funds" | "openings" | "payments" | "dossier" | "access" | "settings";
 
-const nav: {id:Tab; label:string; icon:any; group:"main"|"manage"|"system"}[] = [
-  {id:"overview",label:"Главная",icon:LayoutDashboard,group:"main"},
-  {id:"calendar",label:"Календарь денег",icon:CalendarDays,group:"main"},
-  {id:"actuals",label:"План vs факт",icon:ReceiptText,group:"main"},
-  {id:"notifications",label:"Уведомления",icon:Bell,group:"main"},
-  {id:"locations",label:"Точки",icon:Building2,group:"main"},
-  {id:"finance",label:"Финансы",icon:CircleDollarSign,group:"main"},
-  {id:"scenarios",label:"Сценарии",icon:Calculator,group:"main"},
-  {id:"staff",label:"Команда",icon:Users,group:"manage"},
-  {id:"schedule",label:"График",icon:CalendarDays,group:"manage"},
-  {id:"checklists",label:"Чек-листы",icon:ClipboardCheck,group:"manage"},
-  {id:"requests",label:"Заявки",icon:MessageSquare,group:"manage"},
-  {id:"funds",label:"Фонды",icon:PiggyBank,group:"manage"},
-  {id:"openings",label:"Открытия",icon:CalendarRange,group:"manage"},
-  {id:"payments",label:"Платежи",icon:CreditCard,group:"manage"},
-  {id:"dossier",label:"База STRIXY",icon:BookOpen,group:"manage"},
+type NavGroup = "overview" | "finance" | "team" | "growth" | "system";
+
+const nav: {id:Tab; label:string; icon:any; group:NavGroup}[] = [
+  {id:"overview",label:"Главная",icon:LayoutDashboard,group:"overview"},
+  {id:"locations",label:"Точки",icon:Building2,group:"overview"},
+  {id:"notifications",label:"Уведомления",icon:Bell,group:"overview"},
+
+  {id:"actuals",label:"План vs факт",icon:ReceiptText,group:"finance"},
+  {id:"calendar",label:"Календарь денег",icon:CalendarDays,group:"finance"},
+  {id:"finance",label:"P&L и прибыль",icon:CircleDollarSign,group:"finance"},
+  {id:"scenarios",label:"Сценарии",icon:Calculator,group:"finance"},
+  {id:"funds",label:"Фонды",icon:PiggyBank,group:"finance"},
+  {id:"payments",label:"Платежи",icon:CreditCard,group:"finance"},
+
+  {id:"staff",label:"Команда",icon:Users,group:"team"},
+  {id:"schedule",label:"График",icon:CalendarDays,group:"team"},
+  {id:"checklists",label:"Чек-листы",icon:ClipboardCheck,group:"team"},
+  {id:"requests",label:"Заявки",icon:MessageSquare,group:"team"},
+
+  {id:"openings",label:"Открытия",icon:CalendarRange,group:"growth"},
+  {id:"dossier",label:"База STRIXY",icon:BookOpen,group:"growth"},
+
   {id:"access",label:"Роли и доступы",icon:ShieldCheck,group:"system"},
   {id:"settings",label:"Настройки",icon:Settings,group:"system"},
+];
+
+const navGroups:{id:NavGroup;label:string}[]=[
+  {id:"overview",label:"Обзор"},
+  {id:"finance",label:"Финансы"},
+  {id:"team",label:"Команда"},
+  {id:"growth",label:"Развитие"},
+  {id:"system",label:"Система"}
 ];
 
 function cloneSeed(): AppState {
@@ -375,6 +389,21 @@ function Overview({state,setTab,setSelected}:{state:AppState;setTab:(t:Tab)=>voi
     profit:actualNet(a)
   }));
 
+  const today=localIsoDate();
+  const inSeven=new Date();
+  inSeven.setDate(inSeven.getDate()+7);
+  const upcomingPayments=cashOccurrences(state.cashEvents,today,localIsoDate(inSeven)).filter(x=>x.event.type==="expense");
+  const openRequests=state.workRequests.filter(r=>!["resolved","rejected"].includes(r.status));
+  const urgentRequests=openRequests.filter(r=>r.priority==="urgent");
+  const ownerAlerts=buildNotifications(state).filter(n=>!state.dismissedNotifications.includes(n.id));
+  const activeStaff=state.users.filter(u=>u.role!=="owner"&&u.status==="active");
+  const incompleteChecklists=activeStaff.filter(u=>{
+    const loc=u.locationIds[0];
+    const templates=state.checklistTemplates.filter(t=>t.active&&t.role===u.role&&t.locationIds.includes(loc));
+    if(!templates.length)return false;
+    return templates.some(t=>!state.checklistCompletions.some(comp=>comp.userId===u.id&&comp.templateId===t.id&&comp.locationId===loc&&comp.date===today&&comp.completedAt));
+  }).length;
+
   return <div className="page">
     <div className="welcome">
       <div>
@@ -406,6 +435,41 @@ function Overview({state,setTab,setSelected}:{state:AppState;setTab:(t:Tab)=>voi
       <Kpi label="Фонды / месяц" value={money(state.locations.reduce((s,l)=>s+l.depreciationFund+l.cultureFund,0))} sub="амортизация + команда" icon={PiggyBank} tone="blue"/>
       <Kpi label="Готовность к следующей точке" value={`${readinessPct}%`} sub={next?`следующая: ${next.city}`:"план выполнен"} icon={Target} tone={readinessPct===100?"green":"red"}/>
     </div>
+
+    <section className="attention-center">
+      <div className="attention-head">
+        <div><span className="eyebrow">СЕГОДНЯ</span><h2>Центр внимания</h2><p>Сначала то, что требует решения. Потом — аналитика.</p></div>
+        <div className="attention-score">{ownerAlerts.length+openRequests.length+incompleteChecklists===0?<><CheckCircle2 size={18}/><span>Всё спокойно</span></>:<><AlertTriangle size={18}/><span>{ownerAlerts.length+openRequests.length+incompleteChecklists} сигналов</span></>}</div>
+      </div>
+      <div className="attention-grid">
+        <button onClick={()=>setTab("notifications")} className={`attention-item ${ownerAlerts.some(x=>x.level==="critical")?"danger":ownerAlerts.length?"warning":"ok"}`}>
+          <span className="attention-icon"><Bell size={18}/></span>
+          <span><b>{ownerAlerts.length?ownerAlerts.length:"0"} финансовых сигналов</b><small>{ownerAlerts[0]?.title??"Просроченных и критичных событий нет"}</small></span>
+          <ChevronRight size={18}/>
+        </button>
+        <button onClick={()=>setTab("requests")} className={`attention-item ${urgentRequests.length?"danger":openRequests.length?"warning":"ok"}`}>
+          <span className="attention-icon"><MessageSquare size={18}/></span>
+          <span><b>{openRequests.length} открытых заявок</b><small>{urgentRequests.length?`Срочных: ${urgentRequests.length}`:"Команда без срочных обращений"}</small></span>
+          <ChevronRight size={18}/>
+        </button>
+        <button onClick={()=>setTab("checklists")} className={`attention-item ${incompleteChecklists?"warning":"ok"}`}>
+          <span className="attention-icon"><ClipboardCheck size={18}/></span>
+          <span><b>{incompleteChecklists} сотрудников с незакрытыми чек-листами</b><small>{incompleteChecklists?"Можно проверить выполнение":"Обязательные процессы закрыты"}</small></span>
+          <ChevronRight size={18}/>
+        </button>
+        <button onClick={()=>setTab("calendar")} className={`attention-item ${upcomingPayments.length?"warning":"ok"}`}>
+          <span className="attention-icon"><CalendarDays size={18}/></span>
+          <span><b>{upcomingPayments.length} платежей в ближайшие 7 дней</b><small>{upcomingPayments.length?`На сумму ${money(upcomingPayments.reduce((s,x)=>s+x.event.amount,0))}`:"На неделю обязательств нет"}</small></span>
+          <ChevronRight size={18}/>
+        </button>
+      </div>
+      <div className="quick-actions">
+        <button onClick={()=>setTab("actuals")}><ReceiptText size={16}/><span><b>Добавить факт</b><small>Закрыть месяц</small></span></button>
+        <button onClick={()=>setTab("schedule")}><CalendarDays size={16}/><span><b>График</b><small>Смены команды</small></span></button>
+        <button onClick={()=>setTab("requests")}><MessageSquare size={16}/><span><b>Заявки</b><small>Закупки и проблемы</small></span></button>
+        <button onClick={()=>setTab("openings")}><Building2 size={16}/><span><b>Открытия</b><small>План следующей точки</small></span></button>
+      </div>
+    </section>
 
     <div className="layout-2">
       <section className="panel">
@@ -1108,16 +1172,16 @@ export default function FranchiseApp() {
     tab==="checklists"?<ChecklistsPage state={visibleState} setState={setState} user={viewUser}/>:
     tab==="requests"?<RequestsPage state={visibleState} setState={setState} user={viewUser}/>:
     tab==="openings"?<Openings state={visibleState} setState={setState}/>:
-    <ManagerDashboard state={visibleState} user={viewUser}/>;
+    <ManagerDashboard state={visibleState} user={viewUser} onNavigate={setTab}/>;
 
   const masterContent=tab==="checklists"
     ?<ChecklistsPage state={visibleState} setState={setState} user={viewUser}/>
     :tab==="requests"
       ?<RequestsPage state={visibleState} setState={setState} user={viewUser}/>
-      :<MasterDashboard state={visibleState} user={viewUser}/>;
+      :<MasterDashboard state={visibleState} user={viewUser} onNavigate={setTab}/>;
   const content=role==="owner"?ownerContent:role==="manager"?managerContent:masterContent;
 
-  const renderNav=(group:"main"|"manage"|"system")=>nav.filter(n=>n.group===group && allowedTabs.has(n.id)).map(n=>{
+  const renderNav=(group:NavGroup)=>nav.filter(n=>n.group===group && allowedTabs.has(n.id)).map(n=>{
     const I=n.icon;
     const badge=n.id==="notifications"?activeNotifications.length:n.id==="requests"&&role!=="owner"?staffUnread:0;
     return <button key={n.id} className={tab===n.id?"nav-item active":"nav-item"} onClick={()=>{setTab(n.id);setMobileOpen(false)}}><I size={18}/><span>{n.label}</span>{badge>0&&<b className="nav-badge">{badge>9?"9+":badge}</b>}{tab===n.id&&<span className="nav-active-dot"/>}</button>;
@@ -1126,28 +1190,34 @@ export default function FranchiseApp() {
   return <div className="app-shell">
     <aside className={`sidebar ${mobileOpen?"open":""}`}>
       <div className="brand"><div className="brand-mark">F</div><div><strong>FRANCHISE OS</strong><span>STRIXY</span></div><button className="icon-btn mobile-only close-nav" onClick={()=>setMobileOpen(false)}><X size={20}/></button></div>
-      <div className="sidebar-section"><span className="sidebar-label">Управление</span>{renderNav("main")}</div>
-      <div className="sidebar-section"><span className="sidebar-label">Операции</span>{renderNav("manage")}</div>
-      <div className="sidebar-bottom">{renderNav("system")}<div className="storage-note"><div className="online-dot"/><span><b>Данные сохранены</b><small>локально в браузере</small></span></div></div>
+      <nav className="sidebar-nav">
+        {navGroups.map(group=>{
+          const hasItems=nav.some(n=>n.group===group.id&&allowedTabs.has(n.id));
+          return hasItems?<div className="sidebar-section" key={group.id}><span className="sidebar-label">{group.label}</span>{renderNav(group.id)}</div>:null;
+        })}
+      </nav>
+      <div className="sidebar-bottom"><div className="storage-note"><div className="online-dot"/><span><b>Данные сохранены</b><small>локально в браузере</small></span></div></div>
     </aside>
 
     <main className="main">
       <header className="topbar">
         <div className="top-left"><button className="icon-btn mobile-only" onClick={()=>setMobileOpen(true)}><Menu size={21}/></button><div><span>{role==="owner"?(nav.find(n=>n.id===tab)?.label??"Главная"):roleLabels[role]}</span><small>{role==="owner"?"STRIXY · Сокол → Грязовец → Шексна":`${viewUser.name} · ${visibleState.locations.map(l=>l.city).join(", ")||"без точки"}`}</small></div></div>
         <div className="top-actions">
-          <label className="role-viewer"><span>Режим</span><select value={viewUser.id} onChange={e=>changeView(e.target.value)}>{state.users.filter(u=>u.status!=="disabled").map(u=><option key={u.id} value={u.id}>{roleLabels[u.role]} · {u.name}</option>)}</select></label>
+          {viewUserId==="owner"&&<label className="role-viewer"><span>Предпросмотр</span><select value={viewUser.id} onChange={e=>changeView(e.target.value)}>{state.users.filter(u=>u.status!=="disabled").map(u=><option key={u.id} value={u.id}>{roleLabels[u.role]} · {u.name}</option>)}</select></label>}
           {role==="owner"&&<button className="notification-button" onClick={()=>setTab("notifications")} aria-label="Уведомления"><Bell size={17}/>{activeNotifications.length>0&&<span>{activeNotifications.length>9?"9+":activeNotifications.length}</span>}</button>}
           {role!=="owner"&&<button className="notification-button" onClick={()=>setTab("requests")} aria-label="Рабочие уведомления"><Bell size={17}/>{staffUnread>0&&<span>{staffUnread>9?"9+":staffUnread}</span>}</button>}
-          {role==="owner"&&<button className="quick-pill" onClick={()=>setTab("dossier")}><BookOpen size={15}/> База STRIXY</button>}
+          {role==="owner"&&<button className="quick-pill top-dossier" onClick={()=>setTab("dossier")}><BookOpen size={15}/> База STRIXY</button>}
           <button className="quick-pill lock-pill" onClick={lock}><LockKeyhole size={15}/> Закрыть</button>
           <button className={`owner-avatar role-${role}`} onClick={lock} aria-label="Заблокировать платформу">{role==="owner"?"ИВ":role==="manager"?"У":"М"}</button>
         </div>
       </header>
+      {viewUserId!=="owner"&&<div className="preview-banner"><div><ShieldCheck size={16}/><span>Предпросмотр: <b>{roleLabels[role]} · {viewUser.name}</b></span></div><button onClick={()=>changeView("owner")}>Вернуться владельцу</button></div>}
       {content}
     </main>
 
     <div className="mobile-nav">
-      {nav.filter(n=>allowedTabs.has(n.id) && (role==="owner"?["overview","calendar","actuals","notifications","locations"].includes(n.id):role==="manager"?["overview","staff","schedule","checklists","requests"].includes(n.id):["overview","checklists","requests"].includes(n.id))).map(n=>{const I=n.icon;const badge=role==="owner"&&n.id==="notifications"?activeNotifications.length:n.id==="requests"&&role!=="owner"?staffUnread:0;return <button key={n.id} className={tab===n.id?"active":""} onClick={()=>setTab(n.id)}><span className="mobile-nav-icon"><I size={19}/>{badge>0&&<b>{badge>9?"9+":badge}</b>}</span><span>{n.label}</span></button>})}
+      {nav.filter(n=>allowedTabs.has(n.id) && (role==="owner"?["overview","locations","actuals","finance"].includes(n.id):role==="manager"?["overview","staff","schedule","checklists","requests"].includes(n.id):["overview","checklists","requests"].includes(n.id))).map(n=>{const I=n.icon;const badge=n.id==="requests"&&role!=="owner"?staffUnread:0;return <button key={n.id} className={tab===n.id?"active":""} onClick={()=>setTab(n.id)}><span className="mobile-nav-icon"><I size={19}/>{badge>0&&<b>{badge>9?"9+":badge}</b>}</span><span>{n.label}</span></button>})}
+      {role==="owner"&&<button className={mobileOpen?"active":""} onClick={()=>setMobileOpen(true)}><Menu size={19}/><span>Ещё</span></button>}
     </div>
   </div>;
 }
