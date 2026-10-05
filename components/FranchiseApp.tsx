@@ -7,7 +7,7 @@ import {
   ChevronRight, Circle, CircleDollarSign, ClipboardCheck, Coins, CreditCard, FileText, Gauge,
   Landmark, LayoutDashboard, Menu, PiggyBank, Plus, ReceiptText, RotateCcw, Save,
   Settings, ShieldCheck, Sparkles, Target, Trash2, TrendingUp, Users, Wallet, X,
-  LockKeyhole, Delete, MessageSquare
+  LockKeyhole, Delete, MessageSquare, Search
 } from "lucide-react";
 import {
   Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer,
@@ -993,16 +993,27 @@ function Scenarios({state,setState}:{state:AppState;setState:React.Dispatch<Reac
 }
 
 function Staff({state,setState}:{state:AppState;setState:React.Dispatch<React.SetStateAction<AppState>>}) {
+  const [query,setQuery]=useState("");
+  const [locationFilter,setLocationFilter]=useState("all");
   const add=()=>{
     const e:Employee={id:crypto.randomUUID(),locationId:"sokol",name:"Новый кандидат",role:"Парикмахер",service:"Стрижки",status:"candidate",percent:50,fixed:0,revenue:100000,procedures:180,shifts:15,official:true,insurancePct:20,vacationPct:8.33,sickPct:1};
     setState(s=>({...s,employees:[...s.employees,e]}));
   };
   const upd=(id:string,patch:Partial<Employee>)=>setState(s=>({...s,employees:s.employees.map(e=>e.id===id?{...e,...patch}:e)}));
+  const filteredEmployees=state.employees.filter(e=>
+    (locationFilter==="all"||e.locationId===locationFilter)
+    &&(!query.trim()||(e.name+" "+e.role+" "+e.service).toLowerCase().includes(query.trim().toLowerCase()))
+  );
   return <div className="page">
     <div className="page-head"><div><span className="eyebrow">КОМАНДА</span><h1>Люди и загрузка</h1><p>Не раздувай штат: следи за зарплатой, выручкой на мастера и загрузкой.</p></div><button className="btn primary" onClick={add}><Plus size={16}/> Добавить мастера</button></div>
     <div className="team-cards">{state.locations.map(l=>{const p=locationPnl(l);const count=l.hairMasters+l.nailMasters;return <div className="team-card" key={l.id}><div><b>{l.city}</b><span>{count} мастеров в плане</span></div><div><span>ЗП / мастер</span><b>{money(count?p.staff/count:0)}</b></div><div><span>Выручка / мастер</span><b>{money(count?l.revenue/count:0)}</b></div><div><span>Процедур / мастер / день</span><b>{num(count?p.procedures/30/count:0)}</b></div></div>})}</div>
+    <div className="team-toolbar">
+      <label className="search-field"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Найти мастера"/></label>
+      <div className="tabs-compact"><button className={locationFilter==="all"?"active":""} onClick={()=>setLocationFilter("all")}>Все</button>{state.locations.map(l=><button key={l.id} className={locationFilter===l.id?"active":""} onClick={()=>setLocationFilter(l.id)}>{l.city}</button>)}</div>
+      <span className="team-result-count">{filteredEmployees.length} сотрудников</span>
+    </div>
     <section className="panel table-panel mt"><div className="table-wrap"><table><thead><tr><th>Мастер</th><th>Точка</th><th>Выручка</th><th>%</th><th>Начислено</th><th>Сверху</th><th>Стоимость бизнесу</th><th>Процедур/смену</th></tr></thead>
-    <tbody>{state.employees.map(e=>{const c=employeeCost(e);return <tr key={e.id}>
+    <tbody>{filteredEmployees.map(e=>{const c=employeeCost(e);return <tr key={e.id}>
       <td><input className="table-input" value={e.name} onChange={x=>upd(e.id,{name:x.target.value})}/><small className="cell-sub">{e.role}</small></td>
       <td><select value={e.locationId} onChange={x=>upd(e.id,{locationId:x.target.value})}>{state.locations.map(l=><option value={l.id} key={l.id}>{l.city}</option>)}</select></td>
       <td><CompactNumberInput value={e.revenue} onChange={v=>upd(e.id,{revenue:v})} suffix="₽"/></td>
