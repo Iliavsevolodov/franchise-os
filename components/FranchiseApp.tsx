@@ -601,6 +601,12 @@ function CashCalendar({state,setState}:{state:AppState;setState:React.Dispatch<R
   const plannedExpense=occurrences.filter(x=>x.event.type==="expense").reduce((s,x)=>s+x.event.amount,0);
   const paidNet=paid.reduce((s,e)=>s+signedCash(e),0);
   const forecast=state.cashBalance+plannedIncome-plannedExpense;
+  const forecastFor=(days:number)=>{
+    const end=new Date();
+    end.setDate(end.getDate()+days);
+    return state.cashBalance+cashOccurrences(state.cashEvents,localIsoDate(),localIsoDate(end)).reduce((s,x)=>s+signedCash(x.event),0);
+  };
+  const forecast30=forecastFor(30), forecast60=forecastFor(60), forecast90=forecastFor(90);
   const monthLabel=new Intl.DateTimeFormat("ru-RU",{month:"long",year:"numeric"}).format(cursor);
   const daysInMonth=new Date(y,m+1,0).getDate();
   const offset=(new Date(y,m,1).getDay()+6)%7;
@@ -640,6 +646,13 @@ function CashCalendar({state,setState}:{state:AppState;setState:React.Dispatch<R
       <Kpi label="Расходы месяца" value={money(plannedExpense)} sub="запланировано" icon={CreditCard} tone="red"/>
       <Kpi label="Прогноз после платежей" value={money(forecast)} sub={paidNet?"факт месяца уже учтён в остатке":"на конец выбранного месяца"} icon={Target} tone={forecast>=600000?"green":"amber"}/>
     </div>
+
+    <section className="forecast-strip">
+      <div><span>Через 30 дней</span><b className={forecast30>=600000?"positive":"negative"}>{money(forecast30)}</b></div>
+      <div><span>Через 60 дней</span><b className={forecast60>=600000?"positive":"negative"}>{money(forecast60)}</b></div>
+      <div><span>Через 90 дней</span><b className={forecast90>=600000?"positive":"negative"}>{money(forecast90)}</b></div>
+      <div><span>Минимальный резерв</span><b>{money(600000)}</b></div>
+    </section>
 
     <div className="money-layout">
       <section className="panel calendar-panel">
