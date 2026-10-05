@@ -30,6 +30,7 @@ const openingTemplate = [
 export const seed: AppState = {
   capitalMin: 3900000,
   capitalMax: 4000000,
+  cashBalance: 3900000,
   locations: [
     {
       id:"sokol", name:"STRIXY Сокол", city:"Сокол", format:"STANDARD · 3 кресла + 2 ногтевых места",
@@ -96,6 +97,8 @@ export const seed: AppState = {
     }))
   ),
   actuals: [],
+  cashEvents: [],
+  dismissedNotifications: [],
   privateNotes: [
     {id:"n1",title:"Главный принцип",body:"Не открывать три точки одновременно. Сокол должен сначала подтвердить поток, ФОТ и реальную чистую прибыль.",updatedAt:"2026-10-05"},
     {id:"n2",title:"Базовый минимум зрелой сети",body:"Сокол 800 000 ₽, Грязовец 500 000 ₽, Шексна 500 000 ₽ выручки в месяц.",updatedAt:"2026-10-05"}
