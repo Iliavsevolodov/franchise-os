@@ -149,6 +149,36 @@ export type WorkShift = {
   status: "planned" | "completed" | "missed" | "dayoff";
 };
 
+export type ChecklistFrequency = "shift_open" | "shift_close" | "daily" | "weekly";
+
+export type ChecklistItem = {
+  id: string;
+  text: string;
+  required: boolean;
+};
+
+export type ChecklistTemplate = {
+  id: string;
+  title: string;
+  description: string;
+  role: "manager" | "master";
+  frequency: ChecklistFrequency;
+  locationIds: string[];
+  active: boolean;
+  items: ChecklistItem[];
+};
+
+export type ChecklistCompletion = {
+  id: string;
+  templateId: string;
+  userId: string;
+  locationId: string;
+  date: string;
+  completedItemIds: string[];
+  completedAt?: string;
+  note?: string;
+};
+
 export type AppState = {
   capitalMin: number;
   capitalMax: number;
@@ -164,4 +194,6 @@ export type AppState = {
   privateNotes: PrivateNote[];
   users: AppUser[];
   shifts: WorkShift[];
+  checklistTemplates: ChecklistTemplate[];
+  checklistCompletions: ChecklistCompletion[];
 };
