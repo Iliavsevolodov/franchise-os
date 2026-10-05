@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import {
-  BadgeCheck, CalendarDays, CheckCircle2, CircleDollarSign, Clock3, Gauge,
-  Plus, ShieldCheck, Trash2, TrendingUp, UserCog, Users, WalletCards
+  BadgeCheck, CalendarDays, CheckCircle2, CircleDollarSign, Clock3, Gauge, Inbox,
+  MessageSquare, Plus, ShieldCheck, Trash2, TrendingUp, UserCog, Users, WalletCards,
+  ClipboardCheck, ArrowRight, Bell
 } from "lucide-react";
 import { AppState, AppUser, UserRole } from "@/lib/types";
 import { employeeCost, locationPnl, money, num } from "@/lib/finance";
@@ -20,7 +21,7 @@ function SectionTitle({title,sub}:{title:string;sub?:string}) {
   return <div className="section-title"><div><h2>{title}</h2>{sub&&<p>{sub}</p>}</div></div>;
 }
 
-export function ManagerDashboard({state,user}:{state:AppState;user:AppUser}) {
+export function ManagerDashboard({state,user,onNavigate}:{state:AppState;user:AppUser;onNavigate:(tab:"staff"|"schedule"|"checklists"|"requests"|"openings")=>void}) {
   const [locationId,setLocationId]=useState(state.locations[0]?.id??"");
   const location=state.locations.find(l=>l.id===locationId)??state.locations[0];
   if(!location)return <div className="page"><div className="panel">Для управляющего пока не назначена точка.</div></div>;
@@ -31,6 +32,19 @@ export function ManagerDashboard({state,user}:{state:AppState;user:AppUser}) {
   const candidates=employees.filter(e=>e.status==="candidate").length;
   const planPct=location.targetRevenue?location.revenue/location.targetRevenue*100:0;
   const totalTeamPayroll=employees.reduce((sum,e)=>sum+employeeCost(e).salary,0);
+  const now=new Date();
+  const today=[now.getFullYear(),String(now.getMonth()+1).padStart(2,"0"),String(now.getDate()).padStart(2,"0")].join("-");
+  const todayShifts=state.shifts.filter(s=>s.locationId===location.id&&s.date===today&&s.status!=="dayoff");
+  const openRequests=state.workRequests.filter(r=>r.locationId===location.id&&!["resolved","rejected"].includes(r.status));
+  const urgentRequests=openRequests.filter(r=>r.priority==="urgent").length;
+  const unread=state.staffNotifications.filter(n=>n.userId===user.id&&!n.readAt).length;
+  const masters=state.users.filter(u=>u.role==="master"&&u.locationIds.includes(location.id)&&u.status==="active");
+  const masterTemplates=state.checklistTemplates.filter(t=>t.active&&t.role==="master"&&t.locationIds.includes(location.id));
+  const mastersReady=masters.filter(m=>{
+    const openTemplate=masterTemplates.find(t=>t.frequency==="shift_open");
+    if(!openTemplate)return false;
+    return state.checklistCompletions.some(comp=>comp.userId===m.id&&comp.templateId===openTemplate.id&&comp.locationId===location.id&&comp.date===today&&comp.completedAt);
+  }).length;
 
   return <div className="page">
     <div className="page-head">
@@ -40,6 +54,20 @@ export function ManagerDashboard({state,user}:{state:AppState;user:AppUser}) {
         <span className="role-badge manager"><UserCog size={15}/> Управляющий</span>
       </div>
     </div>
+
+    <section className="role-workspace manager-workspace">
+      <div className="role-workspace-main">
+        <span className="eyebrow">РАБОЧИЙ ЦЕНТР</span>
+        <h2>Что важно сегодня</h2>
+        <p>Все ежедневные действия управляющего собраны в одном месте.</p>
+      </div>
+      <div className="role-action-grid">
+        <button onClick={()=>onNavigate("schedule")}><span className="role-action-icon blue"><CalendarDays size={18}/></span><span><b>{todayShifts.length} смен сегодня</b><small>Открыть график команды</small></span><ArrowRight size={16}/></button>
+        <button onClick={()=>onNavigate("checklists")}><span className="role-action-icon green"><ClipboardCheck size={18}/></span><span><b>{mastersReady}/{masters.length||0} мастеров готовы</b><small>Чек-листы открытия смены</small></span><ArrowRight size={16}/></button>
+        <button onClick={()=>onNavigate("requests")} className={urgentRequests?"attention":""}><span className="role-action-icon red"><Inbox size={18}/></span><span><b>{openRequests.length} открытых заявок</b><small>{urgentRequests?"Срочных: "+urgentRequests:"Расходники и проблемы"}</small></span><ArrowRight size={16}/></button>
+        <button onClick={()=>onNavigate("staff")}><span className="role-action-icon amber"><Users size={18}/></span><span><b>{unread} новых уведомлений</b><small>Команда и рабочие сообщения</small></span><ArrowRight size={16}/></button>
+      </div>
+    </section>
 
     <div className="kpi-grid">
       <Kpi label="Выручка точки" value={money(location.revenue)} sub={`план выполнен на ${num(planPct)}%`} icon={TrendingUp} tone="green"/>
@@ -82,7 +110,7 @@ export function ManagerDashboard({state,user}:{state:AppState;user:AppUser}) {
   </div>;
 }
 
-export function MasterDashboard({state,user}:{state:AppState;user:AppUser}) {
+export function MasterDashboard({state,user,onNavigate}:{state:AppState;user:AppUser;onNavigate:(tab:"checklists"|"requests")=>void}) {
   const employee=state.employees.find(e=>e.id===user.employeeId);
   const location=state.locations[0];
   if(!employee)return <div className="page"><div className="panel">К аккаунту мастера не привязана карточка сотрудника.</div></div>;
@@ -95,12 +123,29 @@ export function MasterDashboard({state,user}:{state:AppState;user:AppUser}) {
     .filter(s=>s.employeeId===employee.id)
     .slice()
     .sort((a,b)=>a.date.localeCompare(b.date));
+  const now=new Date();
+  const today=[now.getFullYear(),String(now.getMonth()+1).padStart(2,"0"),String(now.getDate()).padStart(2,"0")].join("-");
+  const todayShift=shifts.find(s=>s.date===today&&s.status!=="dayoff");
+  const nextShift=shifts.find(s=>s.date>=today&&s.status!=="dayoff");
+  const templates=state.checklistTemplates.filter(t=>t.active&&t.role==="master"&&t.locationIds.includes(location?.id??""));
+  const completedToday=templates.filter(t=>state.checklistCompletions.some(comp=>comp.userId===user.id&&comp.templateId===t.id&&comp.date===today&&comp.completedAt)).length;
+  const openRequests=state.workRequests.filter(r=>r.fromUserId===user.id&&!["resolved","rejected"].includes(r.status)).length;
+  const unread=state.staffNotifications.filter(n=>n.userId===user.id&&!n.readAt).length;
 
   return <div className="page master-page">
     <div className="master-hero">
       <div><span className="eyebrow">ЛИЧНЫЙ КАБИНЕТ МАСТЕРА</span><h1>{employee.name}</h1><p>{location?.city??"Точка"} · {employee.role}</p></div>
       <span className="role-badge master"><BadgeCheck size={15}/> Мастер</span>
     </div>
+
+    <section className="master-today">
+      <div className="master-today-shift">
+        <span className="eyebrow">СЕГОДНЯ</span>
+        <div className="master-shift-time"><Clock3 size={20}/><div><b>{todayShift?todayShift.startTime+"–"+todayShift.endTime:nextShift?"Следующая смена "+new Date(nextShift.date+"T00:00:00").toLocaleDateString("ru-RU",{day:"2-digit",month:"long"}):"Смен нет"}</b><span>{todayShift?"Рабочая смена по графику":"Проверь актуальный график"}</span></div></div>
+      </div>
+      <button className="master-today-action" onClick={()=>onNavigate("checklists")}><span className="role-action-icon green"><ClipboardCheck size={18}/></span><span><b>Чек-листы</b><small>{completedToday}/{templates.length} выполнено сегодня</small></span><ArrowRight size={16}/></button>
+      <button className="master-today-action" onClick={()=>onNavigate("requests")}><span className="role-action-icon blue"><MessageSquare size={18}/></span><span><b>Заявки управляющему</b><small>{openRequests} открытых · {unread} новых сообщений</small></span><ArrowRight size={16}/></button>
+    </section>
 
     <div className="kpi-grid">
       <Kpi label="Личная выручка" value={money(employee.revenue)} sub="текущий расчётный период" icon={TrendingUp} tone="green"/>
@@ -113,7 +158,7 @@ export function MasterDashboard({state,user}:{state:AppState;user:AppUser}) {
       <section className="panel">
         <SectionTitle title="График работы" sub="Только личные смены мастера"/>
         <div className="shift-list">
-          {shifts.length?shifts.map(s=><div key={s.id} className="shift-row">
+          {shifts.length?shifts.filter(s=>s.date>=today).slice(0,6).map(s=><div key={s.id} className="shift-row">
             <div className="shift-date"><CalendarDays size={17}/><span><b>{new Date(s.date+"T00:00:00").toLocaleDateString("ru-RU",{day:"2-digit",month:"long"})}</b><small>{new Date(s.date+"T00:00:00").toLocaleDateString("ru-RU",{weekday:"long"})}</small></span></div>
             <div className="shift-time"><Clock3 size={15}/><b>{s.startTime}–{s.endTime}</b></div>
           </div>):<div className="empty-state small-empty"><CalendarDays size={24}/><b>Смен пока нет</b><span>График появится после назначения управляющим.</span></div>}
