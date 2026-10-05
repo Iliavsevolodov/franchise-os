@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Activity, AlertTriangle, ArrowRight, BarChart3, Bell, BookOpen, BriefcaseBusiness,
   Building2, Calculator, CalendarDays, CalendarRange, CheckCircle2, ChevronLeft,
-  ChevronRight, Circle, CircleDollarSign, Coins, CreditCard, FileText, Gauge,
+  ChevronRight, Circle, CircleDollarSign, ClipboardCheck, Coins, CreditCard, FileText, Gauge,
   Landmark, LayoutDashboard, Menu, PiggyBank, Plus, ReceiptText, RotateCcw, Save,
   Settings, ShieldCheck, Sparkles, Target, Trash2, TrendingUp, Users, Wallet, X,
   LockKeyhole, Delete
@@ -19,10 +19,11 @@ import { ActualMonth, AppState, AppUser, CashEvent, Employee, FundTx, Location, 
 import { actualNet, employeeCost, locationPnl, money, num } from "@/lib/finance";
 import { navByRole, roleLabels, scopedState } from "@/lib/access";
 import { AccessPage, ManagerDashboard, MasterDashboard, SchedulePage } from "@/components/RoleViews";
+import ChecklistsPage from "@/components/Checklists";
 
 type Tab =
   | "overview" | "calendar" | "actuals" | "notifications" | "locations" | "finance" | "scenarios"
-  | "staff" | "schedule" | "funds" | "openings" | "payments" | "dossier" | "access" | "settings";
+  | "staff" | "schedule" | "checklists" | "funds" | "openings" | "payments" | "dossier" | "access" | "settings";
 
 const nav: {id:Tab; label:string; icon:any; group:"main"|"manage"|"system"}[] = [
   {id:"overview",label:"Главная",icon:LayoutDashboard,group:"main"},
@@ -34,6 +35,7 @@ const nav: {id:Tab; label:string; icon:any; group:"main"|"manage"|"system"}[] = 
   {id:"scenarios",label:"Сценарии",icon:Calculator,group:"main"},
   {id:"staff",label:"Команда",icon:Users,group:"manage"},
   {id:"schedule",label:"График",icon:CalendarDays,group:"manage"},
+  {id:"checklists",label:"Чек-листы",icon:ClipboardCheck,group:"manage"},
   {id:"funds",label:"Фонды",icon:PiggyBank,group:"manage"},
   {id:"openings",label:"Открытия",icon:CalendarRange,group:"manage"},
   {id:"payments",label:"Платежи",icon:CreditCard,group:"manage"},
@@ -68,6 +70,8 @@ function hydrateState(raw:any): AppState {
     privateNotes:Array.isArray(raw.privateNotes)?raw.privateNotes:base.privateNotes,
     users:Array.isArray(raw.users)?raw.users:base.users,
     shifts:Array.isArray(raw.shifts)?raw.shifts:base.shifts,
+    checklistTemplates:Array.isArray(raw.checklistTemplates)?raw.checklistTemplates:base.checklistTemplates,
+    checklistCompletions:Array.isArray(raw.checklistCompletions)?raw.checklistCompletions:base.checklistCompletions,
   };
 }
 
@@ -1084,6 +1088,7 @@ export default function FranchiseApp() {
     tab==="scenarios"?<Scenarios state={state} setState={setState}/>:
     tab==="staff"?<Staff state={state} setState={setState}/>:
     tab==="schedule"?<SchedulePage state={state} setState={setState}/>:
+    tab==="checklists"?<ChecklistsPage state={state} setState={setState} user={viewUser}/>:
     tab==="funds"?<Funds state={state} setState={setState}/>:
     tab==="openings"?<Openings state={state} setState={setState}/>:
     tab==="payments"?<Payments state={state}/>:
@@ -1094,10 +1099,13 @@ export default function FranchiseApp() {
   const managerContent =
     tab==="staff"?<Staff state={visibleState} setState={setState}/>:
     tab==="schedule"?<SchedulePage state={visibleState} setState={setState}/>:
+    tab==="checklists"?<ChecklistsPage state={visibleState} setState={setState} user={viewUser}/>:
     tab==="openings"?<Openings state={visibleState} setState={setState}/>:
     <ManagerDashboard state={visibleState} user={viewUser}/>;
 
-  const masterContent=<MasterDashboard state={visibleState} user={viewUser}/>;
+  const masterContent=tab==="checklists"
+    ?<ChecklistsPage state={visibleState} setState={setState} user={viewUser}/>
+    :<MasterDashboard state={visibleState} user={viewUser}/>;
   const content=role==="owner"?ownerContent:role==="manager"?managerContent:masterContent;
 
   const renderNav=(group:"main"|"manage"|"system")=>nav.filter(n=>n.group===group && allowedTabs.has(n.id)).map(n=>{
@@ -1129,7 +1137,7 @@ export default function FranchiseApp() {
     </main>
 
     <div className="mobile-nav">
-      {nav.filter(n=>allowedTabs.has(n.id) && (role==="owner"?["overview","calendar","actuals","notifications","locations"].includes(n.id):role==="manager"?["overview","staff","schedule","openings"].includes(n.id):["overview"].includes(n.id))).map(n=>{const I=n.icon;const badge=role==="owner"&&n.id==="notifications"?activeNotifications.length:0;return <button key={n.id} className={tab===n.id?"active":""} onClick={()=>setTab(n.id)}><span className="mobile-nav-icon"><I size={19}/>{badge>0&&<b>{badge>9?"9+":badge}</b>}</span><span>{n.label}</span></button>})}
+      {nav.filter(n=>allowedTabs.has(n.id) && (role==="owner"?["overview","calendar","actuals","notifications","locations"].includes(n.id):role==="manager"?["overview","staff","schedule","checklists","openings"].includes(n.id):["overview","checklists"].includes(n.id))).map(n=>{const I=n.icon;const badge=role==="owner"&&n.id==="notifications"?activeNotifications.length:0;return <button key={n.id} className={tab===n.id?"active":""} onClick={()=>setTab(n.id)}><span className="mobile-nav-icon"><I size={19}/>{badge>0&&<b>{badge>9?"9+":badge}</b>}</span><span>{n.label}</span></button>})}
     </div>
   </div>;
 }
