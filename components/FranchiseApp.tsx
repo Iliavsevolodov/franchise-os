@@ -1018,6 +1018,22 @@ export default function FranchiseApp() {
     setLoaded(true);
   },[]);
   useEffect(()=>{if(loaded)localStorage.setItem("franchise-os",JSON.stringify(state))},[state,loaded]);
+  const activeNotifications=useMemo(
+    ()=>buildNotifications(state).filter(n=>!state.dismissedNotifications.includes(n.id)),
+    [state]
+  );
+
+  useEffect(()=>{
+    if(!unlocked||!loaded||typeof Notification==="undefined"||Notification.permission!=="granted")return;
+    const important=activeNotifications.filter(n=>n.level==="critical"||n.level==="warning").slice(0,4);
+    for(const n of important){
+      const key=`franchise-os-notified-${n.id}`;
+      if(sessionStorage.getItem(key))continue;
+      new Notification(n.title,{body:n.body,tag:n.id});
+      sessionStorage.setItem(key,"1");
+    }
+  },[unlocked,loaded,activeNotifications]);
+
   const reset=()=>{const x=cloneSeed();setState(x);localStorage.setItem("franchise-os",JSON.stringify(x))};
   const lock=()=>{sessionStorage.removeItem("franchise-os-unlocked");setUnlocked(false);setMobileOpen(false)};
 
@@ -1026,9 +1042,11 @@ export default function FranchiseApp() {
 
   const content =
     tab==="overview"?<Overview state={state} setTab={setTab} setSelected={setSelected}/>:
+    tab==="calendar"?<CashCalendar state={state} setState={setState}/>:
+    tab==="actuals"?<Actuals state={state} setState={setState}/>:
+    tab==="notifications"?<NotificationsCenter state={state} setState={setState} setTab={setTab}/>:
     tab==="locations"?<Locations state={state} setState={setState} selected={selected} setSelected={setSelected}/>:
     tab==="finance"?<Finance state={state}/>:
-    tab==="actuals"?<Actuals state={state} setState={setState}/>:
     tab==="scenarios"?<Scenarios state={state} setState={setState}/>:
     tab==="staff"?<Staff state={state} setState={setState}/>:
     tab==="funds"?<Funds state={state} setState={setState}/>:
@@ -1039,7 +1057,8 @@ export default function FranchiseApp() {
 
   const renderNav=(group:"main"|"manage"|"system")=>nav.filter(n=>n.group===group).map(n=>{
     const I=n.icon;
-    return <button key={n.id} className={tab===n.id?"nav-item active":"nav-item"} onClick={()=>{setTab(n.id);setMobileOpen(false)}}><I size={18}/><span>{n.label}</span>{tab===n.id&&<span className="nav-active-dot"/>}</button>;
+    const badge=n.id==="notifications"?activeNotifications.length:0;
+    return <button key={n.id} className={tab===n.id?"nav-item active":"nav-item"} onClick={()=>{setTab(n.id);setMobileOpen(false)}}><I size={18}/><span>{n.label}</span>{badge>0&&<b className="nav-badge">{badge>9?"9+":badge}</b>}{tab===n.id&&<span className="nav-active-dot"/>}</button>;
   });
 
   return <div className="app-shell">
@@ -1053,13 +1072,13 @@ export default function FranchiseApp() {
     <main className="main">
       <header className="topbar">
         <div className="top-left"><button className="icon-btn mobile-only" onClick={()=>setMobileOpen(true)}><Menu size={21}/></button><div><span>{nav.find(n=>n.id===tab)?.label}</span><small>STRIXY · Сокол → Грязовец → Шексна</small></div></div>
-        <div className="top-actions"><button className="quick-pill" onClick={()=>setTab("dossier")}><BookOpen size={15}/> База STRIXY</button><button className="quick-pill lock-pill" onClick={lock}><LockKeyhole size={15}/> Закрыть</button><button className="owner-avatar" onClick={lock} aria-label="Заблокировать платформу">ИВ</button></div>
+        <div className="top-actions"><button className="notification-button" onClick={()=>setTab("notifications")} aria-label="Уведомления"><Bell size={17}/>{activeNotifications.length>0&&<span>{activeNotifications.length>9?"9+":activeNotifications.length}</span>}</button><button className="quick-pill" onClick={()=>setTab("dossier")}><BookOpen size={15}/> База STRIXY</button><button className="quick-pill lock-pill" onClick={lock}><LockKeyhole size={15}/> Закрыть</button><button className="owner-avatar" onClick={lock} aria-label="Заблокировать платформу">ИВ</button></div>
       </header>
       {content}
     </main>
 
     <div className="mobile-nav">
-      {nav.filter(n=>["overview","locations","finance","actuals","staff"].includes(n.id)).map(n=>{const I=n.icon;return <button key={n.id} className={tab===n.id?"active":""} onClick={()=>setTab(n.id)}><I size={19}/><span>{n.label}</span></button>})}
+      {nav.filter(n=>["overview","calendar","actuals","notifications","locations"].includes(n.id)).map(n=>{const I=n.icon;const badge=n.id==="notifications"?activeNotifications.length:0;return <button key={n.id} className={tab===n.id?"active":""} onClick={()=>setTab(n.id)}><span className="mobile-nav-icon"><I size={19}/>{badge>0&&<b>{badge>9?"9+":badge}</b>}</span><span>{n.label}</span></button>})}
     </div>
   </div>;
 }
