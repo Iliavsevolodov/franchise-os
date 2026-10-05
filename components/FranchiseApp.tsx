@@ -7,7 +7,7 @@ import {
   ChevronRight, Circle, CircleDollarSign, ClipboardCheck, Coins, CreditCard, FileText, Gauge,
   Landmark, LayoutDashboard, Menu, PiggyBank, Plus, ReceiptText, RotateCcw, Save,
   Settings, ShieldCheck, Sparkles, Target, Trash2, TrendingUp, Users, Wallet, X,
-  LockKeyhole, Delete
+  LockKeyhole, Delete, MessageSquare
 } from "lucide-react";
 import {
   Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer,
@@ -20,10 +20,11 @@ import { actualNet, employeeCost, locationPnl, money, num } from "@/lib/finance"
 import { navByRole, roleLabels, scopedState } from "@/lib/access";
 import { AccessPage, ManagerDashboard, MasterDashboard, SchedulePage } from "@/components/RoleViews";
 import ChecklistsPage from "@/components/Checklists";
+import RequestsPage from "@/components/WorkRequests";
 
 type Tab =
   | "overview" | "calendar" | "actuals" | "notifications" | "locations" | "finance" | "scenarios"
-  | "staff" | "schedule" | "checklists" | "funds" | "openings" | "payments" | "dossier" | "access" | "settings";
+  | "staff" | "schedule" | "checklists" | "requests" | "funds" | "openings" | "payments" | "dossier" | "access" | "settings";
 
 const nav: {id:Tab; label:string; icon:any; group:"main"|"manage"|"system"}[] = [
   {id:"overview",label:"Главная",icon:LayoutDashboard,group:"main"},
@@ -36,6 +37,7 @@ const nav: {id:Tab; label:string; icon:any; group:"main"|"manage"|"system"}[] = 
   {id:"staff",label:"Команда",icon:Users,group:"manage"},
   {id:"schedule",label:"График",icon:CalendarDays,group:"manage"},
   {id:"checklists",label:"Чек-листы",icon:ClipboardCheck,group:"manage"},
+  {id:"requests",label:"Заявки",icon:MessageSquare,group:"manage"},
   {id:"funds",label:"Фонды",icon:PiggyBank,group:"manage"},
   {id:"openings",label:"Открытия",icon:CalendarRange,group:"manage"},
   {id:"payments",label:"Платежи",icon:CreditCard,group:"manage"},
@@ -72,6 +74,8 @@ function hydrateState(raw:any): AppState {
     shifts:Array.isArray(raw.shifts)?raw.shifts:base.shifts,
     checklistTemplates:Array.isArray(raw.checklistTemplates)?raw.checklistTemplates:base.checklistTemplates,
     checklistCompletions:Array.isArray(raw.checklistCompletions)?raw.checklistCompletions:base.checklistCompletions,
+    workRequests:Array.isArray(raw.workRequests)?raw.workRequests:base.workRequests,
+    staffNotifications:Array.isArray(raw.staffNotifications)?raw.staffNotifications:base.staffNotifications,
   };
 }
 
@@ -1066,6 +1070,7 @@ export default function FranchiseApp() {
   const role=viewUser.role;
   const visibleState=scopedState(state,viewUser);
   const allowedTabs=new Set(navByRole[role] as Tab[]);
+  const staffUnread=visibleState.staffNotifications.filter(n=>n.userId===viewUser.id&&!n.readAt).length;
   const changeView=(id:string)=>{
     const next=state.users.find(u=>u.id===id);
     if(!next || next.status==="disabled")return;
@@ -1089,6 +1094,7 @@ export default function FranchiseApp() {
     tab==="staff"?<Staff state={state} setState={setState}/>:
     tab==="schedule"?<SchedulePage state={state} setState={setState}/>:
     tab==="checklists"?<ChecklistsPage state={state} setState={setState} user={viewUser}/>:
+    tab==="requests"?<RequestsPage state={state} setState={setState} user={viewUser}/>:
     tab==="funds"?<Funds state={state} setState={setState}/>:
     tab==="openings"?<Openings state={state} setState={setState}/>:
     tab==="payments"?<Payments state={state}/>:
@@ -1100,17 +1106,20 @@ export default function FranchiseApp() {
     tab==="staff"?<Staff state={visibleState} setState={setState}/>:
     tab==="schedule"?<SchedulePage state={visibleState} setState={setState}/>:
     tab==="checklists"?<ChecklistsPage state={visibleState} setState={setState} user={viewUser}/>:
+    tab==="requests"?<RequestsPage state={visibleState} setState={setState} user={viewUser}/>:
     tab==="openings"?<Openings state={visibleState} setState={setState}/>:
     <ManagerDashboard state={visibleState} user={viewUser}/>;
 
   const masterContent=tab==="checklists"
     ?<ChecklistsPage state={visibleState} setState={setState} user={viewUser}/>
-    :<MasterDashboard state={visibleState} user={viewUser}/>;
+    :tab==="requests"
+      ?<RequestsPage state={visibleState} setState={setState} user={viewUser}/>
+      :<MasterDashboard state={visibleState} user={viewUser}/>;
   const content=role==="owner"?ownerContent:role==="manager"?managerContent:masterContent;
 
   const renderNav=(group:"main"|"manage"|"system")=>nav.filter(n=>n.group===group && allowedTabs.has(n.id)).map(n=>{
     const I=n.icon;
-    const badge=n.id==="notifications"?activeNotifications.length:0;
+    const badge=n.id==="notifications"?activeNotifications.length:n.id==="requests"&&role!=="owner"?staffUnread:0;
     return <button key={n.id} className={tab===n.id?"nav-item active":"nav-item"} onClick={()=>{setTab(n.id);setMobileOpen(false)}}><I size={18}/><span>{n.label}</span>{badge>0&&<b className="nav-badge">{badge>9?"9+":badge}</b>}{tab===n.id&&<span className="nav-active-dot"/>}</button>;
   });
 
@@ -1128,6 +1137,7 @@ export default function FranchiseApp() {
         <div className="top-actions">
           <label className="role-viewer"><span>Режим</span><select value={viewUser.id} onChange={e=>changeView(e.target.value)}>{state.users.filter(u=>u.status!=="disabled").map(u=><option key={u.id} value={u.id}>{roleLabels[u.role]} · {u.name}</option>)}</select></label>
           {role==="owner"&&<button className="notification-button" onClick={()=>setTab("notifications")} aria-label="Уведомления"><Bell size={17}/>{activeNotifications.length>0&&<span>{activeNotifications.length>9?"9+":activeNotifications.length}</span>}</button>}
+          {role!=="owner"&&<button className="notification-button" onClick={()=>setTab("requests")} aria-label="Рабочие уведомления"><Bell size={17}/>{staffUnread>0&&<span>{staffUnread>9?"9+":staffUnread}</span>}</button>}
           {role==="owner"&&<button className="quick-pill" onClick={()=>setTab("dossier")}><BookOpen size={15}/> База STRIXY</button>}
           <button className="quick-pill lock-pill" onClick={lock}><LockKeyhole size={15}/> Закрыть</button>
           <button className={`owner-avatar role-${role}`} onClick={lock} aria-label="Заблокировать платформу">{role==="owner"?"ИВ":role==="manager"?"У":"М"}</button>
@@ -1137,7 +1147,7 @@ export default function FranchiseApp() {
     </main>
 
     <div className="mobile-nav">
-      {nav.filter(n=>allowedTabs.has(n.id) && (role==="owner"?["overview","calendar","actuals","notifications","locations"].includes(n.id):role==="manager"?["overview","staff","schedule","checklists","openings"].includes(n.id):["overview","checklists"].includes(n.id))).map(n=>{const I=n.icon;const badge=role==="owner"&&n.id==="notifications"?activeNotifications.length:0;return <button key={n.id} className={tab===n.id?"active":""} onClick={()=>setTab(n.id)}><span className="mobile-nav-icon"><I size={19}/>{badge>0&&<b>{badge>9?"9+":badge}</b>}</span><span>{n.label}</span></button>})}
+      {nav.filter(n=>allowedTabs.has(n.id) && (role==="owner"?["overview","calendar","actuals","notifications","locations"].includes(n.id):role==="manager"?["overview","staff","schedule","checklists","requests"].includes(n.id):["overview","checklists","requests"].includes(n.id))).map(n=>{const I=n.icon;const badge=role==="owner"&&n.id==="notifications"?activeNotifications.length:n.id==="requests"&&role!=="owner"?staffUnread:0;return <button key={n.id} className={tab===n.id?"active":""} onClick={()=>setTab(n.id)}><span className="mobile-nav-icon"><I size={19}/>{badge>0&&<b>{badge>9?"9+":badge}</b>}</span><span>{n.label}</span></button>})}
     </div>
   </div>;
 }
