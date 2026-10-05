@@ -789,3 +789,18 @@ table select,
   .master-stats{grid-template-columns:1fr 1fr}
   .manager-team-summary{grid-template-columns:1fr 1fr}
 }
+
+
+.manager-head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.manager-location-select{
+  border:1px solid var(--line);background:#fff;color:var(--text);border-radius:999px;padding:8px 11px;
+  font-size:10px;font-weight:750;outline:none
+}
+.access-locations{display:flex;gap:5px;flex-wrap:wrap;min-width:210px}
+.access-locations label{
+  display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:#f8f9fb;
+  border-radius:999px;padding:5px 7px;font-size:8px;cursor:pointer
+}
+.access-locations label:has(input:checked){background:#eef2ff;border-color:#dbe3ff;color:#4e63c4}
+.access-locations label.disabled{opacity:.7;cursor:default}
+.access-locations input{width:12px;height:12px}
