@@ -18,11 +18,11 @@ import { franchiseData } from "@/lib/franchiseData";
 import { ActualMonth, AppState, AppUser, CashEvent, Employee, FundTx, Location, Scenario } from "@/lib/types";
 import { actualNet, employeeCost, locationPnl, money, num } from "@/lib/finance";
 import { navByRole, roleLabels, scopedState } from "@/lib/access";
-import { AccessPage, ManagerDashboard, MasterDashboard } from "@/components/RoleViews";
+import { AccessPage, ManagerDashboard, MasterDashboard, SchedulePage } from "@/components/RoleViews";
 
 type Tab =
   | "overview" | "calendar" | "actuals" | "notifications" | "locations" | "finance" | "scenarios"
-  | "staff" | "funds" | "openings" | "payments" | "dossier" | "access" | "settings";
+  | "staff" | "schedule" | "funds" | "openings" | "payments" | "dossier" | "access" | "settings";
 
 const nav: {id:Tab; label:string; icon:any; group:"main"|"manage"|"system"}[] = [
   {id:"overview",label:"Главная",icon:LayoutDashboard,group:"main"},
@@ -33,6 +33,7 @@ const nav: {id:Tab; label:string; icon:any; group:"main"|"manage"|"system"}[] = 
   {id:"finance",label:"Финансы",icon:CircleDollarSign,group:"main"},
   {id:"scenarios",label:"Сценарии",icon:Calculator,group:"main"},
   {id:"staff",label:"Команда",icon:Users,group:"manage"},
+  {id:"schedule",label:"График",icon:CalendarDays,group:"manage"},
   {id:"funds",label:"Фонды",icon:PiggyBank,group:"manage"},
   {id:"openings",label:"Открытия",icon:CalendarRange,group:"manage"},
   {id:"payments",label:"Платежи",icon:CreditCard,group:"manage"},
@@ -1082,6 +1083,7 @@ export default function FranchiseApp() {
     tab==="finance"?<Finance state={state}/>:
     tab==="scenarios"?<Scenarios state={state} setState={setState}/>:
     tab==="staff"?<Staff state={state} setState={setState}/>:
+    tab==="schedule"?<SchedulePage state={state} setState={setState}/>:
     tab==="funds"?<Funds state={state} setState={setState}/>:
     tab==="openings"?<Openings state={state} setState={setState}/>:
     tab==="payments"?<Payments state={state}/>:
@@ -1091,6 +1093,7 @@ export default function FranchiseApp() {
 
   const managerContent =
     tab==="staff"?<Staff state={visibleState} setState={setState}/>:
+    tab==="schedule"?<SchedulePage state={visibleState} setState={setState}/>:
     tab==="openings"?<Openings state={visibleState} setState={setState}/>:
     <ManagerDashboard state={visibleState} user={viewUser}/>;
 
@@ -1126,7 +1129,7 @@ export default function FranchiseApp() {
     </main>
 
     <div className="mobile-nav">
-      {nav.filter(n=>allowedTabs.has(n.id) && (role==="owner"?["overview","calendar","actuals","notifications","locations"].includes(n.id):role==="manager"?["overview","staff","openings"].includes(n.id):["overview"].includes(n.id))).map(n=>{const I=n.icon;const badge=role==="owner"&&n.id==="notifications"?activeNotifications.length:0;return <button key={n.id} className={tab===n.id?"active":""} onClick={()=>setTab(n.id)}><span className="mobile-nav-icon"><I size={19}/>{badge>0&&<b>{badge>9?"9+":badge}</b>}</span><span>{n.label}</span></button>})}
+      {nav.filter(n=>allowedTabs.has(n.id) && (role==="owner"?["overview","calendar","actuals","notifications","locations"].includes(n.id):role==="manager"?["overview","staff","schedule","openings"].includes(n.id):["overview"].includes(n.id))).map(n=>{const I=n.icon;const badge=role==="owner"&&n.id==="notifications"?activeNotifications.length:0;return <button key={n.id} className={tab===n.id?"active":""} onClick={()=>setTab(n.id)}><span className="mobile-nav-icon"><I size={19}/>{badge>0&&<b>{badge>9?"9+":badge}</b>}</span><span>{n.label}</span></button>})}
     </div>
   </div>;
 }
