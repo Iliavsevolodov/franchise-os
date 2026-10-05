@@ -17,7 +17,7 @@ import { seed } from "@/lib/seed";
 import { franchiseData } from "@/lib/franchiseData";
 import { ActualMonth, AppState, AppUser, CashEvent, Employee, FundTx, Location, Scenario } from "@/lib/types";
 import { actualNet, employeeCost, locationPnl, money, num } from "@/lib/finance";
-import { navByRole, roleLabels, scopedState } from "@/lib/access";
+import { navByRole, roleLabels, scopedState, switchableUsers } from "@/lib/access";
 import { AccessPage, ManagerDashboard, MasterDashboard, SchedulePage } from "@/components/RoleViews";
 import ChecklistsPage from "@/components/Checklists";
 import RequestsPage from "@/components/WorkRequests";
@@ -1106,10 +1106,15 @@ export default function FranchiseApp() {
   const [loaded,setLoaded]=useState(false);
   const [unlocked,setUnlocked]=useState(false);
   const [authChecked,setAuthChecked]=useState(false);
+  const [accessUserId,setAccessUserId]=useState("owner");
   const [viewUserId,setViewUserId]=useState("owner");
 
   useEffect(()=>{
-    setUnlocked(sessionStorage.getItem("franchise-os-unlocked")==="1");
+    const unlockedNow=sessionStorage.getItem("franchise-os-unlocked")==="1";
+    const accessId=sessionStorage.getItem("franchise-os-access-user")||"owner";
+    setUnlocked(unlockedNow);
+    setAccessUserId(accessId);
+    setViewUserId(accessId);
     setAuthChecked(true);
   },[]);
 
@@ -1145,17 +1150,24 @@ export default function FranchiseApp() {
     }
   },[unlocked,loaded,activeNotifications,viewUserId]);
 
-  const reset=()=>{const x=cloneSeed();setState(x);setViewUserId("owner");localStorage.setItem("franchise-os",JSON.stringify(x))};
-  const lock=()=>{sessionStorage.removeItem("franchise-os-unlocked");setUnlocked(false);setViewUserId("owner");setMobileOpen(false)};
-  const viewUser:AppUser=state.users.find(u=>u.id===viewUserId && u.status!=="disabled") ?? state.users.find(u=>u.id==="owner") ?? {
+  const reset=()=>{const x=cloneSeed();setState(x);setAccessUserId("owner");setViewUserId("owner");localStorage.setItem("franchise-os",JSON.stringify(x))};
+  const lock=()=>{sessionStorage.removeItem("franchise-os-unlocked");sessionStorage.removeItem("franchise-os-access-user");setUnlocked(false);setAccessUserId("owner");setViewUserId("owner");setMobileOpen(false)};
+  const fallbackOwner:AppUser={
     id:"owner",name:"Владелец",role:"owner",locationIds:state.locations.map(l=>l.id),status:"active"
   };
+  const accessUser:AppUser=state.users.find(u=>u.id===accessUserId && u.status!=="disabled")
+    ?? state.users.find(u=>u.id==="owner")
+    ?? fallbackOwner;
+  const availableViews=switchableUsers(state,accessUser);
+  const availableViewIds=new Set(availableViews.map(u=>u.id));
+  const viewUser:AppUser=availableViews.find(u=>u.id===viewUserId) ?? accessUser;
   const role=viewUser.role;
   const visibleState=scopedState(state,viewUser);
   const allowedTabs=new Set(navByRole[role] as Tab[]);
   const staffUnread=visibleState.staffNotifications.filter(n=>n.userId===viewUser.id&&!n.readAt).length;
   const changeView=(id:string)=>{
-    const next=state.users.find(u=>u.id===id);
+    if(!availableViewIds.has(id))return;
+    const next=state.users.find(u=>u.id===id)??(id===accessUser.id?accessUser:undefined);
     if(!next || next.status==="disabled")return;
     setViewUserId(id);
     setTab("overview");
@@ -1210,6 +1222,15 @@ export default function FranchiseApp() {
     {mobileOpen&&<button className="sidebar-backdrop mobile-only" onClick={()=>setMobileOpen(false)} aria-label="Закрыть меню"/>}
     <aside className={`sidebar ${mobileOpen?"open":""}`}>
       <div className="brand"><div className="brand-mark">F</div><div><strong>FRANCHISE OS</strong><span>STRIXY</span></div><button className="icon-btn mobile-only close-nav" onClick={()=>setMobileOpen(false)}><X size={20}/></button></div>
+      {availableViews.length>1&&<div className="mobile-role-switch">
+        <span>Режим доступа</span>
+        <select value={viewUser.id} onChange={e=>changeView(e.target.value)}>
+          {(["owner","manager","master"] as const).map(group=>{
+            const groupUsers=availableViews.filter(u=>u.role===group);
+            return groupUsers.length?<optgroup key={group} label={roleLabels[group]}>{groupUsers.map(u=><option key={u.id} value={u.id}>{roleLabels[u.role]} · {u.name}</option>)}</optgroup>:null;
+          })}
+        </select>
+      </div>}
       <nav className="sidebar-nav">
         {navGroups.map(group=>{
           const hasItems=nav.some(n=>n.group===group.id&&allowedTabs.has(n.id));
@@ -1223,7 +1244,12 @@ export default function FranchiseApp() {
       <header className="topbar">
         <div className="top-left"><button className="icon-btn mobile-only" onClick={()=>setMobileOpen(true)}><Menu size={21}/></button><div><span>{role==="owner"?(nav.find(n=>n.id===tab)?.label??"Главная"):roleLabels[role]}</span><small>{role==="owner"?"STRIXY · Сокол → Грязовец → Шексна":`${viewUser.name} · ${visibleState.locations.map(l=>l.city).join(", ")||"без точки"}`}</small></div></div>
         <div className="top-actions">
-          {viewUserId==="owner"&&<label className="role-viewer"><span>Предпросмотр</span><select value={viewUser.id} onChange={e=>changeView(e.target.value)}>{state.users.filter(u=>u.status!=="disabled").map(u=><option key={u.id} value={u.id}>{roleLabels[u.role]} · {u.name}</option>)}</select></label>}
+          {availableViews.length>1&&<label className="role-viewer"><span>Роль</span><select value={viewUser.id} onChange={e=>changeView(e.target.value)}>
+            {(["owner","manager","master"] as const).map(group=>{
+              const groupUsers=availableViews.filter(u=>u.role===group);
+              return groupUsers.length?<optgroup key={group} label={roleLabels[group]}>{groupUsers.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</optgroup>:null;
+            })}
+          </select></label>}
           {role==="owner"&&<button className="notification-button" onClick={()=>setTab("notifications")} aria-label="Уведомления"><Bell size={17}/>{activeNotifications.length>0&&<span>{activeNotifications.length>9?"9+":activeNotifications.length}</span>}</button>}
           {role!=="owner"&&<button className="notification-button" onClick={()=>setTab("requests")} aria-label="Рабочие уведомления"><Bell size={17}/>{staffUnread>0&&<span>{staffUnread>9?"9+":staffUnread}</span>}</button>}
           {role==="owner"&&<button className="quick-pill top-dossier" onClick={()=>setTab("dossier")}><BookOpen size={15}/> База STRIXY</button>}
@@ -1231,7 +1257,7 @@ export default function FranchiseApp() {
           <button className={`owner-avatar role-${role}`} onClick={lock} aria-label="Заблокировать платформу">{role==="owner"?"ИВ":role==="manager"?"У":"М"}</button>
         </div>
       </header>
-      {viewUserId!=="owner"&&<div className="preview-banner"><div><ShieldCheck size={16}/><span>Предпросмотр: <b>{roleLabels[role]} · {viewUser.name}</b></span></div><button onClick={()=>changeView("owner")}>Вернуться владельцу</button></div>}
+      {viewUser.id!==accessUser.id&&<div className="preview-banner"><div><ShieldCheck size={16}/><span>Режим: <b>{roleLabels[role]} · {viewUser.name}</b></span></div><button onClick={()=>changeView(accessUser.id)}>Вернуться: {roleLabels[accessUser.role]}</button></div>}
       {content}
     </main>
 
