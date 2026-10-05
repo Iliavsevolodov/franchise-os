@@ -162,4 +162,6 @@ export type AppState = {
   cashEvents: CashEvent[];
   dismissedNotifications: string[];
   privateNotes: PrivateNote[];
+  users: AppUser[];
+  shifts: WorkShift[];
 };
