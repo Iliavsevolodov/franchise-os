@@ -1406,3 +1406,39 @@ td{font-size:11px;padding:12px 14px}
 @media(max-width:370px){
   .kpi-grid,.kpi-grid.three{grid-template-columns:1fr}
 }
+
+
+/* Team search and filtering */
+.team-toolbar{
+  margin-top:12px;
+  display:grid;
+  grid-template-columns:minmax(220px,1fr) auto auto;
+  gap:10px;
+  align-items:center;
+}
+.search-field{
+  min-height:40px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:0 11px;
+  color:#7b8290;
+}
+.search-field:focus-within{border-color:#ffb7bc;box-shadow:0 0 0 3px rgba(255,77,87,.06)}
+.search-field input{
+  width:100%;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:var(--text);
+  font-size:12px;
+}
+.team-result-count{font-size:10px;color:var(--muted);white-space:nowrap}
+@media(max-width:760px){
+  .team-toolbar{grid-template-columns:1fr}
+  .team-result-count{order:-1}
+  .search-field input{font-size:16px}
+}
