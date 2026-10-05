@@ -13,9 +13,9 @@ export const roleDescriptions: Record<UserRole,string> = {
 };
 
 export const navByRole: Record<UserRole,string[]> = {
-  owner:["overview","calendar","actuals","notifications","locations","finance","scenarios","staff","schedule","funds","openings","payments","dossier","access","settings"],
-  manager:["overview","staff","schedule","openings"],
-  master:["overview"]
+  owner:["overview","calendar","actuals","notifications","locations","finance","scenarios","staff","schedule","checklists","funds","openings","payments","dossier","access","settings"],
+  manager:["overview","staff","schedule","checklists","openings"],
+  master:["overview","checklists"]
 };
 
 export function scopedState(state:AppState,user:AppUser):AppState {
@@ -33,7 +33,9 @@ export function scopedState(state:AppState,user:AppUser):AppState {
       openingTasks:state.openingTasks.filter(t=>allowed.has(t.locationId)),
       actuals:state.actuals.filter(a=>allowed.has(a.locationId)),
       shifts:state.shifts.filter(s=>allowed.has(s.locationId)),
-      users:state.users.filter(u=>u.role==="master" && u.locationIds.some(id=>allowed.has(id)))
+      users:state.users.filter(u=>u.role==="master" && u.locationIds.some(id=>allowed.has(id))),
+      checklistTemplates:state.checklistTemplates.filter(t=>t.locationIds.some(id=>allowed.has(id))),
+      checklistCompletions:state.checklistCompletions.filter(c=>allowed.has(c.locationId))
     };
   }
 
@@ -48,7 +50,9 @@ export function scopedState(state:AppState,user:AppUser):AppState {
     actuals:[],
     privateNotes:[],
     shifts:state.shifts.filter(s=>s.employeeId===ownEmployee),
-    users:[user]
+    users:[user],
+    checklistTemplates:state.checklistTemplates.filter(t=>t.role==="master"&&t.locationIds.some(id=>allowed.has(id))),
+    checklistCompletions:state.checklistCompletions.filter(c=>c.userId===user.id)
   };
 }
 
