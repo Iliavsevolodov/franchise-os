@@ -1442,3 +1442,12 @@ td{font-size:11px;padding:12px 14px}
   .team-result-count{order:-1}
   .search-field input{font-size:16px}
 }
+
+
+.sidebar-backdrop{
+  position:fixed;inset:0;z-index:35;border:0;background:rgba(18,24,34,.28);
+  backdrop-filter:blur(2px);padding:0
+}
+@media(max-width:760px){
+  .sidebar-backdrop{display:block}
+}
