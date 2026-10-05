@@ -106,6 +106,21 @@ export type ActualMonth = {
   note: string;
 };
 
+export type CashEvent = {
+  id: string;
+  title: string;
+  type: "income" | "expense";
+  amount: number;
+  dueDate: string;
+  category: string;
+  locationId?: string;
+  status: "planned" | "paid";
+  recurrence: "once" | "monthly";
+  reminderDays: number;
+  note: string;
+  paidAt?: string;
+};
+
 export type PrivateNote = {
   id: string;
   title: string;
@@ -116,11 +131,14 @@ export type PrivateNote = {
 export type AppState = {
   capitalMin: number;
   capitalMax: number;
+  cashBalance: number;
   locations: Location[];
   employees: Employee[];
   funds: FundTx[];
   scenarios: Scenario[];
   openingTasks: OpeningTask[];
   actuals: ActualMonth[];
+  cashEvents: CashEvent[];
+  dismissedNotifications: string[];
   privateNotes: PrivateNote[];
 };
