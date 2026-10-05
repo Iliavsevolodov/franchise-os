@@ -179,6 +179,47 @@ export type ChecklistCompletion = {
   note?: string;
 };
 
+export type WorkRequestCategory = "supplies" | "repair" | "equipment" | "household" | "incident" | "other";
+export type WorkRequestPriority = "low" | "normal" | "urgent";
+export type WorkRequestStatus = "new" | "accepted" | "ordered" | "resolved" | "rejected";
+
+export type WorkRequestItem = {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+};
+
+export type WorkRequest = {
+  id: string;
+  fromUserId: string;
+  locationId: string;
+  category: WorkRequestCategory;
+  title: string;
+  description: string;
+  items: WorkRequestItem[];
+  priority: WorkRequestPriority;
+  status: WorkRequestStatus;
+  createdAt: string;
+  updatedAt: string;
+  managerNote?: string;
+};
+
+export type StaffNotificationType = "checklist_complete" | "shift_ready" | "request_new" | "request_status";
+
+export type StaffNotification = {
+  id: string;
+  userId: string;
+  locationId: string;
+  type: StaffNotificationType;
+  title: string;
+  body: string;
+  createdAt: string;
+  readAt?: string;
+  requestId?: string;
+  checklistCompletionId?: string;
+};
+
 export type AppState = {
   capitalMin: number;
   capitalMax: number;
@@ -196,4 +237,6 @@ export type AppState = {
   shifts: WorkShift[];
   checklistTemplates: ChecklistTemplate[];
   checklistCompletions: ChecklistCompletion[];
+  workRequests: WorkRequest[];
+  staffNotifications: StaffNotification[];
 };
