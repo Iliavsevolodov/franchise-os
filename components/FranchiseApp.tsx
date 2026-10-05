@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Activity, AlertTriangle, ArrowRight, BarChart3, BookOpen, BriefcaseBusiness,
-  Building2, Calculator, CalendarRange, CheckCircle2, ChevronRight, Circle,
-  CircleDollarSign, Coins, CreditCard, FileText, Gauge, Landmark, LayoutDashboard,
-  Menu, PiggyBank, Plus, ReceiptText, RotateCcw, Save, Settings, ShieldCheck,
-  Sparkles, Target, TrendingUp, Users, Wallet, X, LockKeyhole, Delete
+  Activity, AlertTriangle, ArrowRight, BarChart3, Bell, BookOpen, BriefcaseBusiness,
+  Building2, Calculator, CalendarDays, CalendarRange, CheckCircle2, ChevronLeft,
+  ChevronRight, Circle, CircleDollarSign, Coins, CreditCard, FileText, Gauge,
+  Landmark, LayoutDashboard, Menu, PiggyBank, Plus, ReceiptText, RotateCcw, Save,
+  Settings, ShieldCheck, Sparkles, Target, Trash2, TrendingUp, Users, Wallet, X,
+  LockKeyhole, Delete
 } from "lucide-react";
 import {
   Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer,
@@ -14,18 +15,20 @@ import {
 } from "recharts";
 import { seed } from "@/lib/seed";
 import { franchiseData } from "@/lib/franchiseData";
-import { ActualMonth, AppState, Employee, FundTx, Location, Scenario } from "@/lib/types";
+import { ActualMonth, AppState, CashEvent, Employee, FundTx, Location, Scenario } from "@/lib/types";
 import { actualNet, employeeCost, locationPnl, money, num } from "@/lib/finance";
 
 type Tab =
-  | "overview" | "locations" | "finance" | "actuals" | "scenarios"
+  | "overview" | "calendar" | "actuals" | "notifications" | "locations" | "finance" | "scenarios"
   | "staff" | "funds" | "openings" | "payments" | "dossier" | "settings";
 
 const nav: {id:Tab; label:string; icon:any; group:"main"|"manage"|"system"}[] = [
   {id:"overview",label:"Главная",icon:LayoutDashboard,group:"main"},
+  {id:"calendar",label:"Календарь денег",icon:CalendarDays,group:"main"},
+  {id:"actuals",label:"План vs факт",icon:ReceiptText,group:"main"},
+  {id:"notifications",label:"Уведомления",icon:Bell,group:"main"},
   {id:"locations",label:"Точки",icon:Building2,group:"main"},
   {id:"finance",label:"Финансы",icon:CircleDollarSign,group:"main"},
-  {id:"actuals",label:"Факт",icon:ReceiptText,group:"main"},
   {id:"scenarios",label:"Сценарии",icon:Calculator,group:"main"},
   {id:"staff",label:"Команда",icon:Users,group:"manage"},
   {id:"funds",label:"Фонды",icon:PiggyBank,group:"manage"},
@@ -55,6 +58,9 @@ function hydrateState(raw:any): AppState {
     scenarios:Array.isArray(raw.scenarios)?raw.scenarios:base.scenarios,
     openingTasks:Array.isArray(raw.openingTasks)?raw.openingTasks:base.openingTasks,
     actuals:Array.isArray(raw.actuals)?raw.actuals:base.actuals,
+    cashEvents:Array.isArray(raw.cashEvents)?raw.cashEvents:base.cashEvents,
+    dismissedNotifications:Array.isArray(raw.dismissedNotifications)?raw.dismissedNotifications:base.dismissedNotifications,
+    cashBalance:Number.isFinite(raw.cashBalance)?raw.cashBalance:base.cashBalance,
     privateNotes:Array.isArray(raw.privateNotes)?raw.privateNotes:base.privateNotes,
   };
 }
@@ -71,6 +77,116 @@ function downloadCsv(filename:string, rows:(string|number)[][]) {
   a.download=filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function localIsoDate(d=new Date()) {
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,"0");
+  const day=String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+
+function monthKey(d=new Date()) {
+  return localIsoDate(d).slice(0,7);
+}
+
+function addMonthsToIso(date:string,months:number) {
+  const [y,m,d]=date.split("-").map(Number);
+  const x=new Date(y,m-1+months,d);
+  if(x.getMonth()!==((m-1+months)%12+12)%12){
+    x.setDate(0);
+  }
+  return localIsoDate(x);
+}
+
+function daysUntil(date:string) {
+  const [y,m,d]=date.split("-").map(Number);
+  const due=new Date(y,m-1,d);
+  const now=new Date();
+  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  return Math.round((due.getTime()-today.getTime())/86400000);
+}
+
+function signedCash(e:CashEvent) {
+  return e.type==="income" ? e.amount : -e.amount;
+}
+
+function cashOccurrences(events:CashEvent[],from:string,to:string) {
+  const output:{event:CashEvent;date:string}[]=[];
+  for(const event of events){
+    if(event.status!=="planned")continue;
+    if(event.recurrence==="once"){
+      if(event.dueDate>=from&&event.dueDate<=to)output.push({event,date:event.dueDate});
+      continue;
+    }
+    let date=event.dueDate;
+    let guard=0;
+    while(date<=to&&guard<36){
+      if(date>=from)output.push({event,date});
+      date=addMonthsToIso(date,1);
+      guard++;
+    }
+  }
+  return output.sort((a,b)=>a.date.localeCompare(b.date));
+}
+
+type AppNotification = {
+  id:string;
+  title:string;
+  body:string;
+  level:"critical"|"warning"|"info"|"success";
+  date?:string;
+  source:"money"|"plan"|"system";
+};
+
+function buildNotifications(state:AppState):AppNotification[] {
+  const out:AppNotification[]=[];
+  for(const e of state.cashEvents){
+    if(e.status!=="planned")continue;
+    const d=daysUntil(e.dueDate);
+    if(d<0){
+      out.push({id:`cash-overdue-${e.id}-${e.dueDate}`,title:`Просрочено: ${e.title}`,body:`${money(e.amount)} · срок был ${e.dueDate}`,level:"critical",date:e.dueDate,source:"money"});
+    }else if(d<=e.reminderDays){
+      out.push({id:`cash-due-${e.id}-${e.dueDate}`,title:d===0?`Сегодня: ${e.title}`:`${e.title} через ${d} дн.`,body:`${money(e.amount)} · ${e.type==="expense"?"расход":"поступление"}`,level:d<=1?"warning":"info",date:e.dueDate,source:"money"});
+    }
+  }
+
+  const latestByLocation=new Map<string,ActualMonth>();
+  for(const a of [...state.actuals].sort((x,y)=>y.month.localeCompare(x.month))){
+    if(!latestByLocation.has(a.locationId))latestByLocation.set(a.locationId,a);
+  }
+  for(const [locationId,a] of latestByLocation){
+    const l=state.locations.find(x=>x.id===locationId);
+    if(!l)continue;
+    const revenueRatio=l.revenue>0?a.revenue/l.revenue:1;
+    if(a.revenue>0&&revenueRatio<0.9){
+      out.push({id:`plan-revenue-${a.id}`,title:`${l.city}: выручка ниже плана`,body:`${money(a.revenue)} вместо ${money(l.revenue)} · ${num((revenueRatio-1)*100)}%`,level:revenueRatio<0.75?"critical":"warning",source:"plan"});
+    }
+    const net=actualNet(a);
+    if(a.revenue>0&&net<0){
+      out.push({id:`plan-loss-${a.id}`,title:`${l.city}: месяц в минусе`,body:`Фактический результат ${money(net)}`,level:"critical",source:"plan"});
+    }
+  }
+
+  for(const l of state.locations){
+    const share=l.services.reduce((s,x)=>s+x.sharePct,0);
+    if(Math.abs(share-100)>.01){
+      out.push({id:`service-share-${l.id}`,title:`${l.city}: проверь структуру услуг`,body:`Сумма долей сейчас ${num(share)}%, должна быть 100%`,level:"warning",source:"system"});
+    }
+  }
+
+  const horizon=new Date();
+  horizon.setDate(horizon.getDate()+30);
+  const upcoming=cashOccurrences(state.cashEvents,localIsoDate(),localIsoDate(horizon));
+  const forecast=state.cashBalance+upcoming.reduce((s,x)=>s+signedCash(x.event),0);
+  if(forecast<600000){
+    out.push({id:"cash-reserve-30",title:"Резерв на горизонте 30 дней низкий",body:`Прогноз остатка: ${money(forecast)}`,level:forecast<0?"critical":"warning",source:"money"});
+  }
+
+  return out.sort((a,b)=>{
+    const rank={critical:0,warning:1,info:2,success:3};
+    return rank[a.level]-rank[b.level] || (a.date??"9999").localeCompare(b.date??"9999");
+  });
 }
 
 function Pill({children,tone="neutral"}:{children:React.ReactNode;tone?:"neutral"|"green"|"amber"|"red"|"blue"}) {
