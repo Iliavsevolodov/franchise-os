@@ -1046,3 +1046,12 @@ table select,
   .request-item-row{grid-template-columns:1fr 58px 72px 28px}
   .request-category-grid{grid-template-columns:1fr}
 }
+
+@media(max-width:760px){
+  .request-item-row input,
+  .request-item-row select,
+  .request-description textarea,
+  .manager-note input{
+    font-size:16px!important;
+  }
+}
