@@ -580,59 +580,299 @@ function Finance({state}:{state:AppState}) {
   </div>;
 }
 
+function CashCalendar({state,setState}:{state:AppState;setState:React.Dispatch<React.SetStateAction<AppState>>}) {
+  const [cursor,setCursor]=useState(()=>{
+    const now=new Date();
+    return new Date(now.getFullYear(),now.getMonth(),1);
+  });
+  const [form,setForm]=useState<Omit<CashEvent,"id"|"status"|"paidAt">>({
+    title:"",type:"expense",amount:0,dueDate:localIsoDate(),category:"Аренда",
+    locationId:"",recurrence:"once",reminderDays:3,note:""
+  });
+
+  const y=cursor.getFullYear();
+  const m=cursor.getMonth();
+  const month=`${y}-${String(m+1).padStart(2,"0")}`;
+  const first=`${month}-01`;
+  const last=`${month}-${String(new Date(y,m+1,0).getDate()).padStart(2,"0")}`;
+  const occurrences=cashOccurrences(state.cashEvents,first,last);
+  const paid=state.cashEvents.filter(e=>e.status==="paid"&&e.dueDate.startsWith(month));
+  const plannedIncome=occurrences.filter(x=>x.event.type==="income").reduce((s,x)=>s+x.event.amount,0);
+  const plannedExpense=occurrences.filter(x=>x.event.type==="expense").reduce((s,x)=>s+x.event.amount,0);
+  const paidNet=paid.reduce((s,e)=>s+signedCash(e),0);
+  const forecast=state.cashBalance+plannedIncome-plannedExpense;
+  const monthLabel=new Intl.DateTimeFormat("ru-RU",{month:"long",year:"numeric"}).format(cursor);
+  const daysInMonth=new Date(y,m+1,0).getDate();
+  const offset=(new Date(y,m,1).getDay()+6)%7;
+  const cells=Array.from({length:offset+daysInMonth},(_,i)=>i<offset?null:i-offset+1);
+  const categories=["Аренда","Зарплата","Налоги","Рассрочка STRIXY","Маркетинг","Расходники","Оборудование","Фонд команды","Амортизация","Выручка","Прочее"];
+
+  const add=()=>{
+    if(!form.title.trim()||!form.amount||!form.dueDate)return;
+    const item:CashEvent={...form,id:crypto.randomUUID(),status:"planned",locationId:form.locationId||undefined};
+    setState(s=>({...s,cashEvents:[...s.cashEvents,item]}));
+    setForm(x=>({...x,title:"",amount:0,note:""}));
+  };
+
+  const markPaid=(event:CashEvent)=>{
+    if(event.status==="paid")return;
+    const history:CashEvent={...event,id:crypto.randomUUID(),status:"paid",recurrence:"once",paidAt:localIsoDate()};
+    setState(s=>{
+      const nextEvents=event.recurrence==="monthly"
+        ? [...s.cashEvents.map(x=>x.id===event.id?{...x,dueDate:addMonthsToIso(x.dueDate,1)}:x),history]
+        : s.cashEvents.map(x=>x.id===event.id?{...x,status:"paid" as const,paidAt:localIsoDate()}:x);
+      return {...s,cashBalance:s.cashBalance+signedCash(event),cashEvents:nextEvents};
+    });
+  };
+
+  const remove=(id:string)=>setState(s=>({...s,cashEvents:s.cashEvents.filter(x=>x.id!==id)}));
+  const upcoming=state.cashEvents.filter(e=>e.status==="planned").sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,12);
+
+  return <div className="page">
+    <div className="page-head">
+      <div><span className="eyebrow">КАЛЕНДАРЬ ДЕНЕГ</span><h1>Все платежи и поступления</h1><p>Внеси обязательство один раз — платформа посчитает остаток и напомнит о сроке.</p></div>
+      <div className="calendar-head-actions"><Field label="Деньги сейчас" value={state.cashBalance} onChange={v=>setState(s=>({...s,cashBalance:v}))} suffix="₽" emphasis/></div>
+    </div>
+
+    <div className="kpi-grid">
+      <Kpi label="Денег сейчас" value={money(state.cashBalance)} sub="фактический остаток" icon={Wallet} tone="blue"/>
+      <Kpi label="Поступления месяца" value={money(plannedIncome)} sub="запланировано" icon={TrendingUp} tone="green"/>
+      <Kpi label="Расходы месяца" value={money(plannedExpense)} sub="запланировано" icon={CreditCard} tone="red"/>
+      <Kpi label="Прогноз после платежей" value={money(forecast)} sub={paidNet?"факт месяца уже учтён в остатке":"на конец выбранного месяца"} icon={Target} tone={forecast>=600000?"green":"amber"}/>
+    </div>
+
+    <div className="money-layout">
+      <section className="panel calendar-panel">
+        <div className="calendar-toolbar">
+          <button className="icon-btn bordered" onClick={()=>setCursor(new Date(y,m-1,1))}><ChevronLeft size={18}/></button>
+          <div><b>{monthLabel}</b><span>Плановые даты платежей</span></div>
+          <button className="icon-btn bordered" onClick={()=>setCursor(new Date(y,m+1,1))}><ChevronRight size={18}/></button>
+        </div>
+        <div className="calendar-weekdays">{["Пн","Вт","Ср","Чт","Пт","Сб","Вс"].map(x=><span key={x}>{x}</span>)}</div>
+        <div className="cash-calendar">
+          {cells.map((day,i)=>{
+            if(day===null)return <div className="calendar-cell blank" key={`b-${i}`}/>;
+            const date=`${month}-${String(day).padStart(2,"0")}`;
+            const dayEvents=occurrences.filter(x=>x.date===date);
+            const dayPaid=paid.filter(x=>x.dueDate===date);
+            const isToday=date===localIsoDate();
+            return <button className={`calendar-cell ${isToday?"today":""}`} key={date} onClick={()=>setForm(f=>({...f,dueDate:date}))}>
+              <span className="day-number">{day}</span>
+              <div className="day-events">
+                {dayEvents.slice(0,3).map(x=><span key={x.event.id+x.date} className={x.event.type==="income"?"income":"expense"}>{x.event.type==="income"?"+":"−"} {formatEditableNumber(x.event.amount)}</span>)}
+                {dayPaid.slice(0,2).map(x=><span key={x.id} className="paid">✓ {formatEditableNumber(x.amount)}</span>)}
+                {dayEvents.length+dayPaid.length>5&&<small>+{dayEvents.length+dayPaid.length-5}</small>}
+              </div>
+            </button>;
+          })}
+        </div>
+        <div className="calendar-legend"><span><i className="dot income"/>Поступление</span><span><i className="dot expense"/>Расход</span><span><i className="dot paid"/>Оплачено</span></div>
+      </section>
+
+      <section className="panel cash-form-panel">
+        <SectionTitle title="Добавить в календарь" sub="Разовый или ежемесячный платёж"/>
+        <div className="cash-type-switch">
+          <button className={form.type==="expense"?"active expense":""} onClick={()=>setForm({...form,type:"expense"})}>Расход</button>
+          <button className={form.type==="income"?"active income":""} onClick={()=>setForm({...form,type:"income"})}>Поступление</button>
+        </div>
+        <label className="field"><span className="field-label">Название</span><input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="Например: аренда Сокол"/></label>
+        <Field label="Сумма" value={form.amount} onChange={v=>setForm({...form,amount:v})} suffix="₽" emphasis/>
+        <div className="form-grid cash-form-grid">
+          <label className="field"><span className="field-label">Дата</span><input type="date" value={form.dueDate} onChange={e=>setForm({...form,dueDate:e.target.value})}/></label>
+          <label className="field"><span className="field-label">Категория</span><select value={form.category} onChange={e=>setForm({...form,category:e.target.value})}>{categories.map(x=><option key={x}>{x}</option>)}</select></label>
+          <label className="field"><span className="field-label">Точка</span><select value={form.locationId??""} onChange={e=>setForm({...form,locationId:e.target.value})}><option value="">Вся сеть / без точки</option>{state.locations.map(l=><option value={l.id} key={l.id}>{l.city}</option>)}</select></label>
+          <label className="field"><span className="field-label">Повтор</span><select value={form.recurrence} onChange={e=>setForm({...form,recurrence:e.target.value as CashEvent["recurrence"]})}><option value="once">Один раз</option><option value="monthly">Каждый месяц</option></select></label>
+          <Field label="Напомнить заранее" value={form.reminderDays} onChange={v=>setForm({...form,reminderDays:Math.max(0,Math.round(v))})} suffix="дн."/>
+        </div>
+        <label className="field"><span className="field-label">Комментарий</span><input value={form.note} onChange={e=>setForm({...form,note:e.target.value})} placeholder="Необязательно"/></label>
+        <button className="btn primary full" onClick={add}><Plus size={16}/> Добавить событие</button>
+      </section>
+    </div>
+
+    <section className="panel mt">
+      <SectionTitle title="Ближайшие деньги" sub="Отмечай оплату — текущий остаток пересчитается автоматически"/>
+      <div className="cash-event-list">
+        {upcoming.length?upcoming.map(e=>{
+          const l=state.locations.find(x=>x.id===e.locationId);
+          const d=daysUntil(e.dueDate);
+          return <div className={`cash-event ${d<0?"overdue":""}`} key={e.id}>
+            <div className={`cash-event-icon ${e.type}`}>{e.type==="income"?"+":"−"}</div>
+            <div className="cash-event-copy"><b>{e.title}</b><span>{e.dueDate} · {e.category}{l?` · ${l.city}`:""}{e.recurrence==="monthly"?" · ежемесячно":""}</span>{d<0&&<small>Просрочено на {Math.abs(d)} дн.</small>}</div>
+            <b className={e.type==="income"?"positive":"negative"}>{e.type==="income"?"+":"−"}{money(e.amount)}</b>
+            <button className="btn soft sm" onClick={()=>markPaid(e)}>{e.type==="income"?"Получено":"Оплачено"}</button>
+            <button className="icon-btn danger-icon" onClick={()=>remove(e.id)} aria-label="Удалить"><Trash2 size={16}/></button>
+          </div>;
+        }):<div className="empty-state small-empty"><CalendarDays size={25}/><b>Платежей пока нет</b><span>Добавь аренду, рассрочки, налоги и ожидаемые поступления.</span></div>}
+      </div>
+    </section>
+  </div>;
+}
+
 function Actuals({state,setState}:{state:AppState;setState:React.Dispatch<React.SetStateAction<AppState>>}) {
   const first=state.locations[0]?.id??"sokol";
-  const [form,setForm]=useState<Omit<ActualMonth,"id">>({
-    locationId:first,month:new Date().toISOString().slice(0,7),revenue:0,procedures:0,payroll:0,
-    employerCosts:0,materials:0,acquiring:0,rent:40000,marketing:10000,other:0,tax:0,note:""
+  const [locationId,setLocationId]=useState(first);
+  const [month,setMonth]=useState(monthKey());
+  const loc=state.locations.find(l=>l.id===locationId)??state.locations[0];
+  const plan=locationPnl(loc);
+
+  const blank=():Omit<ActualMonth,"id">=>({
+    locationId,month,revenue:0,procedures:0,payroll:0,employerCosts:0,materials:0,
+    acquiring:0,rent:0,marketing:0,other:0,tax:0,note:""
   });
-  const add=()=>{
-    if(!form.month)return;
-    const item:ActualMonth={...form,id:crypto.randomUUID()};
-    setState(s=>({...s,actuals:[item,...s.actuals]}));
+  const [form,setForm]=useState<Omit<ActualMonth,"id">>(blank);
+
+  useEffect(()=>{
+    const existing=state.actuals.find(a=>a.locationId===locationId&&a.month===month);
+    if(existing){
+      const {id,...rest}=existing;
+      setForm(rest);
+    }else{
+      setForm(blank());
+    }
+  },[locationId,month]);
+
+  const planOther=loc.accounting+loc.internet+loc.cleaning+loc.software+loc.depreciationFund+loc.cultureFund;
+  const fillPlan=()=>setForm({
+    locationId,month,revenue:loc.revenue,procedures:Math.round(plan.procedures),payroll:Math.round(plan.staff),
+    employerCosts:Math.round(plan.employerCosts),materials:Math.round(plan.materials),acquiring:Math.round(plan.acquiring),
+    rent:loc.rent,marketing:loc.marketing,other:planOther,tax:Math.round(plan.tax),note:""
+  });
+  const save=()=>{
+    const old=state.actuals.find(a=>a.locationId===locationId&&a.month===month);
+    const item:ActualMonth={...form,locationId,month,id:old?.id??crypto.randomUUID()};
+    setState(s=>({...s,actuals:old?s.actuals.map(a=>a.id===old.id?item:a):[item,...s.actuals]}));
   };
-  const totalActualRevenue=state.actuals.reduce((s,a)=>s+a.revenue,0);
-  const totalActualNet=state.actuals.reduce((s,a)=>s+actualNet(a),0);
+
+  const actualResult=actualNet({...form,id:"preview"});
+  const actualAvg=form.procedures?form.revenue/form.procedures:0;
+  const compare=[
+    {label:"Выручка",plan:loc.revenue,actual:form.revenue,higher:true,money:true},
+    {label:"Процедуры",plan:Math.round(plan.procedures),actual:form.procedures,higher:true,money:false},
+    {label:"Средний чек",plan:plan.avgCheck,actual:actualAvg,higher:true,money:true},
+    {label:"ФОТ",plan:plan.staff,actual:form.payroll,higher:false,money:true},
+    {label:"Работодатель сверху",plan:plan.employerCosts,actual:form.employerCosts,higher:false,money:true},
+    {label:"Расходники",plan:plan.materials,actual:form.materials,higher:false,money:true},
+    {label:"Эквайринг",plan:plan.acquiring,actual:form.acquiring,higher:false,money:true},
+    {label:"Аренда",plan:loc.rent,actual:form.rent,higher:false,money:true},
+    {label:"Маркетинг",plan:loc.marketing,actual:form.marketing,higher:false,money:true},
+    {label:"Прочие + фонды",plan:planOther,actual:form.other,higher:false,money:true},
+    {label:"Налог",plan:plan.tax,actual:form.tax,higher:false,money:true},
+    {label:"Чистая прибыль",plan:plan.net,actual:actualResult,higher:true,money:true},
+  ];
+  const revenuePct=loc.revenue?form.revenue/loc.revenue*100:0;
+  const profitPct=plan.net?actualResult/plan.net*100:0;
+  const history=state.actuals.filter(a=>a.locationId===locationId).sort((a,b)=>a.month.localeCompare(b.month)).map(a=>({month:a.month.slice(5)+"/"+a.month.slice(2,4),revenue:a.revenue,profit:actualNet(a)}));
+
   return <div className="page">
-    <div className="page-head"><div><span className="eyebrow">ФАКТИЧЕСКИЕ ДАННЫЕ</span><h1>План → факт</h1><p>После открытия вноси реальный месяц и сравнивай его с моделью.</p></div></div>
-    <div className="kpi-grid three">
-      <Kpi label="Внесено месяцев" value={String(state.actuals.length)} icon={CalendarRange} tone="blue"/>
-      <Kpi label="Фактическая выручка" value={money(totalActualRevenue)} icon={BarChart3} tone="green"/>
-      <Kpi label="Фактическая прибыль" value={money(totalActualNet)} icon={Wallet} tone={totalActualNet>=0?"green":"red"}/>
+    <div className="page-head">
+      <div><span className="eyebrow">ПЛАН VS ФАКТ</span><h1>{loc.city}: контроль месяца</h1><p>Вводи реальный результат — платформа сама покажет отклонения.</p></div>
+      <div className="plan-fact-selectors">
+        <select value={locationId} onChange={e=>setLocationId(e.target.value)}>{state.locations.map(l=><option value={l.id} key={l.id}>{l.city}</option>)}</select>
+        <input type="month" value={month} onChange={e=>setMonth(e.target.value)}/>
+      </div>
     </div>
-    <div className="layout-2">
+
+    <div className="kpi-grid">
+      <Kpi label="План выручки" value={money(loc.revenue)} sub="на месяц" icon={Target} tone="blue"/>
+      <Kpi label="Факт выручки" value={money(form.revenue)} sub={`${num(revenuePct)}% плана`} icon={BarChart3} tone={revenuePct>=100?"green":revenuePct>=90?"amber":"red"}/>
+      <Kpi label="План прибыли" value={money(plan.net)} sub={`${num(plan.margin)}% маржа`} icon={CircleDollarSign} tone="blue"/>
+      <Kpi label="Факт прибыли" value={money(actualResult)} sub={`${num(profitPct)}% от плана`} icon={Wallet} tone={actualResult>=plan.net?"green":actualResult>=0?"amber":"red"}/>
+    </div>
+
+    <div className="plan-fact-layout">
       <section className="panel">
-        <SectionTitle title="Добавить месяц" sub="Вводи фактические суммы из учёта"/>
+        <SectionTitle title="Фактический месяц" sub="Заполни цифры из кассы и учёта" action={<button className="btn soft sm" onClick={fillPlan}>Заполнить планом</button>}/>
         <div className="form-grid">
-          <label className="field"><span>Точка</span><select value={form.locationId} onChange={e=>setForm({...form,locationId:e.target.value})}>{state.locations.map(l=><option key={l.id} value={l.id}>{l.city}</option>)}</select></label>
-          <label className="field"><span>Месяц</span><input type="month" value={form.month} onChange={e=>setForm({...form,month:e.target.value})}/></label>
           <Field label="Выручка" value={form.revenue} onChange={v=>setForm({...form,revenue:v})} suffix="₽" emphasis/>
-          <Field label="Процедур" value={form.procedures} onChange={v=>setForm({...form,procedures:v})}/>
-          <Field label="ФОТ" value={form.payroll} onChange={v=>setForm({...form,payroll:v})}/>
-          <Field label="Работодатель сверху" value={form.employerCosts} onChange={v=>setForm({...form,employerCosts:v})}/>
-          <Field label="Расходники" value={form.materials} onChange={v=>setForm({...form,materials:v})}/>
-          <Field label="Эквайринг" value={form.acquiring} onChange={v=>setForm({...form,acquiring:v})}/>
-          <Field label="Аренда + КУ" value={form.rent} onChange={v=>setForm({...form,rent:v})}/>
-          <Field label="Маркетинг" value={form.marketing} onChange={v=>setForm({...form,marketing:v})}/>
-          <Field label="Прочие" value={form.other} onChange={v=>setForm({...form,other:v})}/>
-          <Field label="Налог" value={form.tax} onChange={v=>setForm({...form,tax:v})}/>
+          <Field label="Процедуры" value={form.procedures} onChange={v=>setForm({...form,procedures:Math.round(v)})}/>
+          <Field label="ФОТ" value={form.payroll} onChange={v=>setForm({...form,payroll:v})} suffix="₽"/>
+          <Field label="Работодатель сверху" value={form.employerCosts} onChange={v=>setForm({...form,employerCosts:v})} suffix="₽"/>
+          <Field label="Расходники" value={form.materials} onChange={v=>setForm({...form,materials:v})} suffix="₽"/>
+          <Field label="Эквайринг" value={form.acquiring} onChange={v=>setForm({...form,acquiring:v})} suffix="₽"/>
+          <Field label="Аренда + КУ" value={form.rent} onChange={v=>setForm({...form,rent:v})} suffix="₽"/>
+          <Field label="Маркетинг" value={form.marketing} onChange={v=>setForm({...form,marketing:v})} suffix="₽"/>
+          <Field label="Прочие + фонды" value={form.other} onChange={v=>setForm({...form,other:v})} suffix="₽"/>
+          <Field label="Налог" value={form.tax} onChange={v=>setForm({...form,tax:v})} suffix="₽"/>
         </div>
-        <label className="field full-field"><span>Комментарий</span><input value={form.note} onChange={e=>setForm({...form,note:e.target.value})} placeholder="Что повлияло на месяц?"/></label>
-        <button className="btn primary" onClick={add}><Plus size={16}/> Сохранить месяц</button>
+        <label className="field full-field"><span className="field-label">Комментарий месяца</span><input value={form.note} onChange={e=>setForm({...form,note:e.target.value})} placeholder="Почему план выполнен / не выполнен?"/></label>
+        <button className="btn primary" onClick={save}><Save size={16}/> Сохранить факт</button>
       </section>
+
       <section className="panel">
-        <SectionTitle title="Предварительный результат" sub="До сохранения"/>
-        <div className="actual-preview">
-          <span>Выручка <b>{money(form.revenue)}</b></span>
-          <span>Все расходы <b>{money(form.revenue-actualNet({...form,id:"preview"}))}</b></span>
-          <span className="big">Чистый результат <b>{money(actualNet({...form,id:"preview"}))}</b></span>
+        <SectionTitle title="Отклонения" sub="Зелёное — лучше плана, красное — требует внимания"/>
+        <div className="variance-list">
+          {compare.map(row=>{
+            const delta=row.actual-row.plan;
+            const pct=row.plan?delta/Math.abs(row.plan)*100:0;
+            const good=row.higher?delta>=0:delta<=0;
+            return <div className="variance-row" key={row.label}>
+              <div><b>{row.label}</b><span>План {row.money?money(row.plan):formatEditableNumber(row.plan)}</span></div>
+              <div className="variance-actual"><b>{row.money?money(row.actual):formatEditableNumber(row.actual)}</b><span className={good?"positive":"negative"}>{delta>=0?"+":""}{num(pct)}%</span></div>
+            </div>;
+          })}
         </div>
       </section>
     </div>
-    <section className="panel table-panel mt">
-      <div className="table-wrap"><table><thead><tr><th>Месяц</th><th>Точка</th><th>Выручка</th><th>Процедур</th><th>Средний чек</th><th>ФОТ</th><th>Чистый результат</th><th>Комментарий</th></tr></thead>
-      <tbody>{state.actuals.map(a=>{const l=state.locations.find(x=>x.id===a.locationId);return <tr key={a.id}><td>{a.month}</td><td><b>{l?.city??a.locationId}</b></td><td>{money(a.revenue)}</td><td>{a.procedures}</td><td>{money(a.procedures?a.revenue/a.procedures:0)}</td><td>{money(a.payroll+a.employerCosts)}</td><td className={actualNet(a)>=0?"positive":"negative"}><b>{money(actualNet(a))}</b></td><td>{a.note||"—"}</td></tr>})}</tbody></table></div>
+
+    <section className="panel mt">
+      <SectionTitle title="Динамика факта" sub={history.length?"Все сохранённые месяцы выбранной точки":"Появится после первого сохранённого месяца"}/>
+      {history.length?<ResponsiveContainer width="100%" height={280}><LineChart data={history}><CartesianGrid vertical={false} stroke="#eef0f4"/><XAxis dataKey="month" tickLine={false} axisLine={false}/><YAxis tickLine={false} axisLine={false} tickFormatter={v=>`${Math.round(Number(v)/1000)}k`}/><Tooltip formatter={(v:any)=>money(Number(v))}/><Legend/><Line dataKey="revenue" name="Выручка" stroke="#171b24" strokeWidth={3}/><Line dataKey="profit" name="Прибыль" stroke="#ff4d57" strokeWidth={3}/></LineChart></ResponsiveContainer>:<div className="empty-state small-empty"><BarChart3 size={25}/><b>Истории пока нет</b><span>Сохрани первый фактический месяц.</span></div>}
     </section>
+  </div>;
+}
+
+function NotificationsCenter({state,setState,setTab}:{state:AppState;setState:React.Dispatch<React.SetStateAction<AppState>>;setTab:(t:Tab)=>void}) {
+  const all=buildNotifications(state);
+  const active=all.filter(n=>!state.dismissedNotifications.includes(n.id));
+  const critical=active.filter(n=>n.level==="critical").length;
+  const warning=active.filter(n=>n.level==="warning").length;
+  const due=active.filter(n=>n.source==="money").length;
+  const dismiss=(id:string)=>setState(s=>({...s,dismissedNotifications:[...new Set([...s.dismissedNotifications,id])]}));
+  const clearAll=()=>setState(s=>({...s,dismissedNotifications:[...new Set([...s.dismissedNotifications,...active.map(n=>n.id)])]}));
+  const enableBrowser=async()=>{
+    if(!("Notification" in window))return;
+    await Notification.requestPermission();
+  };
+
+  return <div className="page">
+    <div className="page-head">
+      <div><span className="eyebrow">ЦЕНТР УВЕДОМЛЕНИЙ</span><h1>Что требует внимания</h1><p>Платежи, просрочки и отклонения от плана собираются автоматически.</p></div>
+      <div className="welcome-actions"><button className="btn soft" onClick={enableBrowser}><Bell size={16}/> Разрешить уведомления</button>{active.length>0&&<button className="btn ghost" onClick={clearAll}>Отметить всё просмотренным</button>}</div>
+    </div>
+
+    <div className="kpi-grid three">
+      <Kpi label="Критично" value={String(critical)} icon={AlertTriangle} tone="red"/>
+      <Kpi label="Предупреждения" value={String(warning)} icon={Bell} tone="amber"/>
+      <Kpi label="По деньгам" value={String(due)} icon={CalendarDays} tone="blue"/>
+    </div>
+
+    <div className="notification-layout">
+      <section className="panel">
+        <SectionTitle title="Активные уведомления" sub="Исчезают после устранения причины или ручного закрытия"/>
+        <div className="notification-list">
+          {active.length?active.map(n=><div className={`notification-card ${n.level}`} key={n.id}>
+            <div className="notification-symbol">{n.level==="critical"?<AlertTriangle size={19}/>:n.source==="money"?<CalendarDays size={19}/>:<Bell size={19}/>}</div>
+            <div className="notification-copy"><b>{n.title}</b><span>{n.body}</span>{n.date&&<small>{n.date}</small>}</div>
+            {n.source==="money"&&<button className="btn soft sm" onClick={()=>setTab("calendar")}>К календарю</button>}
+            {n.source==="plan"&&<button className="btn soft sm" onClick={()=>setTab("actuals")}>План vs факт</button>}
+            <button className="icon-btn" onClick={()=>dismiss(n.id)} aria-label="Скрыть"><X size={16}/></button>
+          </div>):<div className="empty-state"><CheckCircle2 size={30} className="positive"/><b>Всё под контролем</b><span>Нет активных просрочек или критичных отклонений.</span></div>}
+        </div>
+      </section>
+
+      <section className="panel notification-rules">
+        <SectionTitle title="Что контролирует система"/>
+        <div className="check-list neutral">
+          <div><CalendarDays size={17}/><span>Срок каждого платежа и указанное тобой количество дней для напоминания.</span></div>
+          <div><AlertTriangle size={17}/><span>Просроченные расходы и поступления.</span></div>
+          <div><BarChart3 size={17}/><span>Фактическую выручку ниже 90% месячного плана.</span></div>
+          <div><CircleDollarSign size={17}/><span>Убыточный фактический месяц.</span></div>
+          <div><Wallet size={17}/><span>Прогноз денежного резерва на ближайшие 30 дней.</span></div>
+          <div><Settings size={17}/><span>Ошибки в модели, например сумма долей услуг не равна 100%.</span></div>
+        </div>
+        <div className="alert blue"><Bell size={18}/><span>Системные уведомления браузера появляются при открытии платформы. Сам центр уведомлений работает всегда внутри FRANCHISE OS.</span></div>
+      </section>
+    </div>
   </div>;
 }
 
